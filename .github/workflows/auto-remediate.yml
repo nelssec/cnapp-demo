@@ -1,0 +1,103 @@
+name: Auto-remediate dependencies
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup qscanner
+        id: qs
+        uses: ./.github/actions/setup-qscanner
+
+      - name: Verify qscanner
+        run: |
+          set -uo pipefail
+          "${{ steps.qs.outputs.path }}" --version
+
+      - name: Patch vulnerable dependency manifests in place
+        id: patch
+        env:
+          QUALYS_ACCESS_TOKEN: ${{ secrets.QUALYS_ACCESS_TOKEN }}
+          QUALYS_POD: ${{ vars.QUALYS_POD || 'CA1' }}
+        run: |
+          # GitHub's default bash for run steps is `bash -eo pipefail`; drop -e so the
+          # pipeline's exit code reaches the rc= capture below instead of aborting the step.
+          set +e
+          set -uo pipefail
+          mkdir -p qscanner-output
+          # `patch` runs its own internal SCA scan (mode=get-report) before rewriting
+          # manifests, so there is no separate "scan first" step - see pkg/commands/patch.go /
+          # pkg/scanner/patcher.go LaunchPatcher(): it calls PerformScan() itself, then
+          # patch.PerformPatch() against the resulting report. The Python requirements.txt
+          # patcher (pkg/patch/patcher/python/requirements.go) is the one exercised here;
+          # the Node app has no supported patcher, which is why service/requirements.txt is
+          # the file that changes. PATH must be a git repository root: qscanner's local code
+          # source (pkg/artifact/code/code.go tryLocalCode -> git.PlainOpen) requires a .git
+          # directory directly inside PATH (it does not search upward), so passing the
+          # `service` subdirectory fails local resolution and then fails again falling back
+          # to treating "service" as a remote git URL. Use the checkout root (".") instead;
+          # qscanner walks the whole tree and only requirements.txt is a supported manifest.
+          "${{ steps.qs.outputs.path }}" --pod "$QUALYS_POD" \
+            --report-format json,table \
+            -o qscanner-output \
+            patch --replace-original . 2>&1 | tee qscanner-output/patch.log
+          rc=${PIPESTATUS[0]}
+          echo "qscanner exit code: $rc"
+          # 40 = EXIT_FAILED_TO_GET_VULN_REPORT - the backend didn't return the SCA
+          # vulnerability report in time, so patch had nothing to act on this run. Warn and
+          # continue rather than fail; `changed` will correctly come out false below.
+          # Anything else non-zero (including 70 = EXIT_PATCH_FAILED) is a real failure.
+          if [[ $rc -eq 40 ]]; then
+            echo "::warning::SCA vulnerability report not available from the Qualys backend yet (qscanner exit 40); nothing to patch this run"
+          elif [[ $rc -ne 0 ]]; then
+            echo "::error::qscanner patch exited $rc"
+            exit "$rc"
+          fi
+          git status --short
+          if git diff --quiet -- service/requirements.txt; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build pull request body from the diff
+        if: steps.patch.outputs.changed == 'true'
+        run: |
+          set -uo pipefail
+          python3 .github/scripts/build-remediation-pr-body.py \
+            service/requirements.txt qscanner-output/patch.log \
+            > qscanner-output/pr-body.md
+          cat qscanner-output/pr-body.md
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qscanner-patch-reports
+          path: qscanner-output/
+
+      - name: Open pull request
+        if: steps.patch.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: qscanner/auto-remediation
+          delete-branch: true
+          commit-message: "Bump vulnerable dependencies to fixed versions (QScanner patch)"
+          title: "Security: bump vulnerable dependencies (QScanner)"
+          body-path: qscanner-output/pr-body.md
+          labels: security,dependencies
+          add-paths: |
+            service/requirements.txt
+
+      - name: Nothing to patch
+        if: steps.patch.outputs.changed != 'true'
+        run: echo "No manifest changes produced by qscanner patch."
