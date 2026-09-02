@@ -111,6 +111,61 @@ appears for every audience — and `recommended_actions`. DevOps gets a per-file
 checklist; the CISO gets counts, plain-language top risks, and a short list of decisions to
 make.
 
+## 8. Compliance scorecard [6.2.5, 1.2.2]
+
+> Run code_scan on this repository with scan_types ["iac"] and engine "local", then call
+> compliance_report on that report_path and show me the CIS Kubernetes and CIS Docker
+> controls this repo fails, with the check IDs that fail each one.
+
+Expected: `compliance_report` returns a `frameworks` list - one entry per framework the
+findings map to (`qualys-kspm`, `kubescape`, `cis-k8s-1.9`, `pss-v1.31`, `cis-docker-1.7`) -
+each with `id`, `name`, `version`, `failed`, `passed`, a `coverage_note`, and a `controls`
+list where every control is `fail` (with the check IDs in `findings`) or `not_evaluated`.
+CIS K8s `5.2.2` fails on `KSV-0017` (privileged container); CIS Docker `4.1` fails on
+`DS-0002` (root user). Plus a `summary` with `total_controls_failed` and `by_framework`.
+Ask for `frameworks: ["cis-k8s-1.9"]` to scope it to one benchmark. Nothing here is
+`pass`: the IaC engines report pass/fail per check, not per control, so only an image scan
+(prompt 9's image report, or `demo.sh` section 4) contributes `pass` rows - for CIS Docker
+those come from the image's own control evaluation.
+
+The same scorecard is available in the terminal as `--report-format compliance`
+(`demo.sh` section 6).
+
+## 9. Trace a finding back to the developer [3.5.1 to 3.5.5, 3.2.4]
+
+> Call trace_finding with finding_id "CVE-2023-30861", the image report path from the last
+> container_image_scan, the code report path from the last code_scan, and repository_path set
+> to this repository. Walk me through the story it returns.
+
+Expected: one record tying the runtime finding to the commit that caused it - `finding`
+(id, kind, severity, package, installed and fixed version), `image` (`reference` plus
+`labels` with `source`, `revision`, `run_url`, and `actor` read from the OCI labels
+`build-and-gate.yml` stamps on the image), `code` (`repository`, `branch`, `commit` with
+hash/message/author, and `manifest` with the path and the line number that pins the
+vulnerable version in `service/requirements.txt`), `owners` (from `CODEOWNERS`), and a
+`story` paragraph that reads as one narrative. `run_url` is composed from the
+`com.qualys.cnapp-demo.run-id` label and the source repository, so it links straight to the
+Actions run. An IaC check id works too (`trace_finding` with `finding_id "KSV-0017"` and just
+the code report) and comes back with the file, the line, and the compliance mapping.
+
+No `git` or `gh` runs: the commit comes from the report's own repository metadata and the
+manifest line comes from reading the file in the checkout.
+
+## 10. Triage findings to their owners [5.1.1, 5.1.2, 3.5.5]
+
+> Use the triage_to_owners prompt with the last scan report path and repository_path set to
+> this repository.
+
+Expected: one Markdown task list per owner, resolved from `CODEOWNERS` - Terraform,
+CloudFormation, and Azure ARM findings to `@nelssec/cloud-security`; the Helm chart and the
+`Dockerfile` to `@nelssec/platform-team`; `app/` and `service/` dependency findings to
+`@nelssec/app-team` - each item carrying a ticket-ready title, the lowercase severity,
+`file:line`, a fix hint from `generate_fix` (marked exact or guided), and why it landed with
+that owner. Anything no rule claims falls back to the last commit author from the report, and
+a closing "Unassigned" section proposes the `CODEOWNERS` lines that would claim those paths.
+Calling `finding_owners` directly gives the same grouping as data (`owners`, each with
+`source`, `findings`, and `counts.by_severity`).
+
 ## Finding the report path
 
 If the agent asks for `scan_report_path`, tell it: "Use the `report_path` returned by the

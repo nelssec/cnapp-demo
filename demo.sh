@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Terminal walkthrough for the CNAPP demo. Six sections: IaC, secrets, SCA, container image,
-# policy gate, and a hand-off pointer to the MCP prompts (docs/agent-prompts.md) and the live
-# GitHub artifacts (RUNBOOK.md has the full table).
+# Terminal walkthrough for the CNAPP demo. Seven sections: IaC, secrets, SCA, container image,
+# policy gate, compliance scorecard, and a hand-off pointer to the MCP prompts
+# (docs/agent-prompts.md) and the live GitHub artifacts (RUNBOOK.md has the full table).
 #
 # Usage:
 #   source ~/.config/cnapp-demo/iac.env   # QUALYS_ACCESS_TOKEN, QUALYS_IAC_USERNAME/PASSWORD
@@ -160,7 +160,17 @@ echo -e "${DIM}SARIF written to $OUT/gate (this is what annotates the pull reque
 pause
 
 # ---------------------------------------------------------------------------
-header "6. Fixes, remediation PRs, and stakeholder views" \
+header "6. Compliance scorecard (CIS, Pod Security Standards, Kubescape, Qualys KSPM)" \
+       "The same findings, turned around: not 'what did we find' but 'which controls do we fail'. This is the auditor's view of the same scan, computed locally from the embedded crosswalk - no backend query."
+show "qscanner --pod $POD --scan-types iac --iac-engine local --exclude-dirs '$EXCLUDE' --report-format compliance code ."
+"$QSCANNER" --pod "$POD" --scan-types iac --iac-engine local --exclude-dirs "$EXCLUDE" --report-format compliance -o "$OUT/compliance" code "$HERE"
+rc=$?
+echo -e "${YELLOW}exit code: $rc${RESET}"
+echo -e "${DIM}Every FAIL row names the check IDs that failed the control: CIS K8s 5.2.2 <- KSV-0017 (privileged), CIS Docker 4.1 <- DS-0002 (root user). Controls the scan could not speak to are left out here; the compliance_report MCP tool returns them as not_evaluated.${RESET}"
+pause
+
+# ---------------------------------------------------------------------------
+header "7. Fixes, remediation PRs, and stakeholder views" \
        "Hand-off: switch to VS Code (Copilot agent, .vscode/mcp.json) or Devin (devin/). Prompts are numbered in docs/agent-prompts.md."
 echo "  Prompt 1  IDE IaC scanning                    [4.1.1, 4.2.1-4.2.4]"
 echo "  Prompt 2  Secrets and compliance view          [4.2.4, 4.2.6]"
@@ -169,6 +179,9 @@ echo "  Prompt 4  Automated remediation pull request   [4.3.2]"
 echo "  Prompt 5  Automated recommendations            [4.3.4]"
 echo "  Prompt 6  Policy enforcement in the developer workflow         [4.3.3]"
 echo "  Prompt 7  Stakeholder views (5 audiences)       [4.4.1-4.4.5]"
+echo "  Prompt 8  Compliance scorecard                  [6.2.5, 1.2.2]"
+echo "  Prompt 9  Trace a finding to the developer      [3.5.1-3.5.5, 3.2.4]"
+echo "  Prompt 10 Triage findings to their owners       [5.1.1, 5.1.2]"
 echo
 echo "  Live artifacts:"
 echo "    gh pr view 1 --repo nelssec/cnapp-demo --web    # demo/open-ingress: gate-failing, annotated"

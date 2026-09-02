@@ -49,6 +49,12 @@ Prerequisites (do these the day before):
 | 4.4.4 | I&O view | Same | audience `infra_ops` | Artifacts and rollout order | Same as 4.4.1 |
 | 4.4.5 | CISO view | Same | audience `ciso` | Counts (including `by_framework`), plain-language top risks, decisions to make | Same as 4.4.1 |
 | 3.5.1-3.5.5 | Trace finding to image, repo, pipeline, commit, developer | GitHub Actions | `Push image` step log in `build-and-gate.yml`; qscanner collects `GITHUB_REPOSITORY`, `GITHUB_SHA`, `GITHUB_TRIGGERING_ACTOR`/`github.actor` as build pipeline metadata (`--collect-build-pipeline-metadata`, on by default) | Commit SHA, run ID, and actor visible in the push log line and in image labels (`com.qualys.cnapp-demo.run-id`, `...actor`) | Actions slow: `gh run view 33613303229 --repo nelssec/cnapp-demo --log` reproduces the same log locally |
+| 6.2.5 | Compliance reporting against benchmarks | Terminal, VS Code | `demo.sh` section 6 (`--report-format compliance`), or prompt 8 from `docs/agent-prompts.md` | `Compliance Scorecard` table: FRAMEWORK, CONTROL, STATUS, FINDINGS across `qualys-kspm`, `kubescape`, `cis-k8s-1.9`, `pss-v1.31`, `cis-docker-1.7`; CIS K8s 5.2.2 FAIL on `KSV-0017`, CIS Docker 4.1 FAIL on `DS-0002` | Terminal only needs the local engine, so no backend dependency; if VS Code MCP is down, `demo.sh` section 6 shows the same scorecard |
+| 1.2.2 | Map findings to compliance controls | VS Code | Prompt 8, scoped with `frameworks: ["cis-k8s-1.9"]` | One framework entry with `failed`, `passed`, `coverage_note`, and every control as `fail` or `not_evaluated` | Read the `COMPLIANCE` column of `demo.sh` section 1's IaC table instead - same crosswalk, per finding rather than per control |
+| 3.5.1-3.5.5 (MCP) | Trace a production finding to image, repo, pipeline, commit, developer | VS Code or Devin | Prompt 9 (`trace_finding`) with the image report from `demo.sh` section 4 and the code report from section 3 | One record plus a `story` paragraph: image reference, OCI labels (`source`, `revision`, `run_url` composed from `com.qualys.cnapp-demo.run-id`, `actor`), repository, branch, commit hash/message/author, the `service/requirements.txt` line that pins the vulnerable version, and the `CODEOWNERS` owner | No image report to hand (`--fast` run): call `trace_finding` with only `code_report_path` and `finding_id "KSV-0017"` - the repo, commit, and owner half of the trace still resolves |
+| 3.2.4 | Correlate runtime artifact to source | Same | Same | The `package_match` block confirms the same package and version is in both the image and the repo | Same as 3.5.1-3.5.5 (MCP) |
+| 5.1.1 | Assign findings to an owner | VS Code or Devin | Prompt 10 (`triage_to_owners`), or `finding_owners` directly | One task list per `CODEOWNERS` alias: `@nelssec/cloud-security` for `terraform/`, `cloudformation/`, `azure/`; `@nelssec/platform-team` for `helm/` and `Dockerfile`; `@nelssec/app-team` for `app/` and `service/`; `counts.by_severity` per owner | MCP down: `cat CODEOWNERS` and narrate the mapping against `demo.sh` section 1's FILE:LINE column |
+| 5.1.2 | Route unowned findings | Same | Same | Findings no rule claims fall back to the last commit author from the report (`source: commit_author`); anything with neither lands under `unassigned`, with proposed `CODEOWNERS` lines | Same as 5.1.1 |
 
 ## Fallbacks (consolidated)
 
@@ -195,6 +201,18 @@ from `~/.config/cnapp-demo/iac.env`.
   `~/qualys/qscanner/data/<scan_id>/<hash>-Report.json`) with no `mcp-scans/` folder at all.
   Updated the doc to say so and to point agents at the tool's own `report_path` field rather
   than guessing the path.
+- **Pending (analyst tools, not yet rehearsed at the time this row was written):** the release
+  this MCP surface was rehearsed against does not carry `compliance_report`, `trace_finding`,
+  or `finding_owners` yet. Once the release that does is rehearsed, `tools/list` should report
+  <n> tools (11 above plus these three) and `prompts/list` should report <n> prompts (8 above
+  plus `triage_to_owners`); `compliance_report` on the IaC report above should show <n>
+  frameworks failing <n> controls total, with CIS Kubernetes `5.2.2` failing on `KSV-0017` and
+  CIS Docker `4.1` failing on `DS-0002`; `trace_finding` on `KSV-0017` should return
+  `code.repository` `nelssec/cnapp-demo`, the last commit hash/author, and owner
+  `@nelssec/platform-team` from `CODEOWNERS`, plus (when an image report with GHCR labels is
+  available) `image.reference` <n> and `image.labels` <n>; `finding_owners` on the same report
+  should bucket findings under `@nelssec/cloud-security`, `@nelssec/platform-team`, and
+  `@nelssec/app-team` with `source: codeowners` and per-owner `counts.by_severity` <n>.
 
 ### VS Code and Devin (not rehearsed unattended)
 

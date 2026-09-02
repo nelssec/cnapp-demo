@@ -35,6 +35,24 @@ See `RUNBOOK.md` for the demo flow and `docs/agent-prompts.md` for the VS Code a
 
 Every finding carries a compliance column: CIS Docker / Kubernetes / AWS / Azure / GCP, Pod Security Standards, Kubescape, Qualys KSPM CIDs, and Qualys IaC CIDs. Dependencies (`--scan-types sca`) and secrets (`--scan-types secret`) run in the same invocation.
 
+Findings also roll up the other way. `--report-format compliance` (and the `compliance_report`
+MCP tool) turn the same scan into a control scorecard - which CIS Docker, CIS Kubernetes, CIS
+AWS/Azure/GCP, Pod Security Standards, Kubescape, and Qualys KSPM controls this repository
+fails, and which check IDs fail each one.
+
+Two more MCP tools close the loop from a running artifact back to a person:
+
+- `trace_finding` takes one QID, CVE, or IaC check ID and returns the image it ships in, the
+  OCI provenance labels `build-and-gate.yml` stamps on that image (source repo, commit
+  revision, Actions run, actor), the repository and branch, the commit and its author, the
+  manifest line that pins the vulnerable version, the owner, and a one-paragraph narrative.
+- `finding_owners` groups every finding by the team that owns the file, resolved from the
+  `CODEOWNERS` file at the root of this repo, falling back to the last commit author. The
+  `triage_to_owners` prompt turns that into one Jira-ready task list per owner.
+
+Neither runs `git` or `gh`: the commit history comes from the scan report's own repository
+metadata and the manifest lines come from reading the files in the checkout.
+
 ## Getting the scanner
 
 This repo publishes a custom QScanner build (with IaC scanning and MCP remediation tools) as
