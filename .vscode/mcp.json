@@ -1,0 +1,34 @@
+{
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "qualys-access-token",
+      "description": "Qualys access token for pod CA1 (QUALYS_ACCESS_TOKEN)",
+      "password": true
+    },
+    {
+      "type": "promptString",
+      "id": "qualys-iac-username",
+      "description": "Qualys IaC backend username (QUALYS_IAC_USERNAME, for Terraform/CloudFormation backend evaluation)"
+    },
+    {
+      "type": "promptString",
+      "id": "qualys-iac-password",
+      "description": "Qualys IaC backend password (QUALYS_IAC_PASSWORD)",
+      "password": true
+    }
+  ],
+  "servers": {
+    "qscanner": {
+      "type": "stdio",
+      "command": "${workspaceFolder}/.qscanner/qscanner",
+      "args": ["mcp", "--pod", "CA1"],
+      "env": {
+        "QUALYS_ACCESS_TOKEN": "${input:qualys-access-token}",
+        "QUALYS_IAC_AUTH_TYPE": "basic",
+        "QUALYS_IAC_USERNAME": "${input:qualys-iac-username}",
+        "QUALYS_IAC_PASSWORD": "${input:qualys-iac-password}"
+      }
+    }
+  }
+}

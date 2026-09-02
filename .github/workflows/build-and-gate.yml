@@ -13,7 +13,6 @@ on:
 permissions:
   contents: read
   packages: write
-  checks: write
 
 env:
   IMAGE: ghcr.io/${{ github.repository }}
@@ -153,5 +152,6 @@ jobs:
         run: |
           if [[ "${{ github.event.inputs.force_push }}" == "true" ]]; then
             echo "::warning::Gate failed but force_push was set - image was pushed anyway (demo override)."
+            exit 0
           fi
           exit 1

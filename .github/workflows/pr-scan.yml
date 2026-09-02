@@ -19,12 +19,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      # For pull requests check out the PR head commit, not the synthetic merge commit:
-      # the Qualys backend creates the code asset from the repository remote and the
-      # commit, and a merge ref that exists only on the runner never gets an SCA report.
+      # For pull requests check out the PR head BRANCH (attached HEAD), not the synthetic
+      # merge commit or a detached SHA: the Qualys backend creates the code asset from the
+      # repository remote, branch, and commit, and without a branch name the SCA report
+      # is never produced (the request keeps returning 404 until qscanner gives up).
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
 
       - name: Setup qscanner
         id: qs
@@ -105,5 +106,9 @@ jobs:
       - name: Enforce gate
         if: steps.scan.outputs.exit_code == '72'
         run: |
-          echo "::error::IaC gate failed (qscanner exit 72). See the 'QScanner findings' check for file and line annotations."
+          if [[ -n "${{ steps.scan.outputs.sarif }}" ]]; then
+            echo "::error::IaC gate failed (qscanner exit 72). See the 'QScanner findings' check for file and line annotations."
+          else
+            echo "::error::IaC gate failed (qscanner exit 72). No SARIF was written, so there are no inline annotations; see the scan log and the qscanner-reports artifact."
+          fi
           exit 1
