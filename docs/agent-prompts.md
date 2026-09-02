@@ -118,7 +118,10 @@ make.
 > controls this repo fails, with the check IDs that fail each one.
 
 Expected: `compliance_report` returns a `frameworks` list - one entry per framework the
-findings map to (`qualys-kspm`, `kubescape`, `cis-k8s-1.9`, `pss-v1.31`, `cis-docker-1.7`) -
+findings map to. On a whole-repo scan that is about 10 frameworks with roughly 89 failed
+controls: `qualys-kspm` (e.g. `CID-45032` for the privileged container), `kubescape`,
+`cis-k8s-1.9`, `pss-v1.31`, `cis-docker-1.7`, plus `qualys-iac`, `cis-aws-1.2`/`1.4`/`3.0`
+and `cis-azure-2.1` from the Terraform, CloudFormation and ARM files -
 each with `id`, `name`, `version`, `failed`, `passed`, a `coverage_note`, and a `controls`
 list where every control is `fail` (with the check IDs in `findings`) or `not_evaluated`.
 CIS K8s `5.2.2` fails on `KSV-0017` (privileged container); CIS Docker `4.1` fails on
