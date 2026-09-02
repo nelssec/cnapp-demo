@@ -13,6 +13,7 @@ CIS Docker compliance, in the terminal, in GitHub pull requests, in VS Code, and
 | Kubernetes | `helm/cnapp-demo/` | Privileged, runs as UID 0, docker.sock hostPath, no resource limits, AWS key in values.yaml |
 | Cloud (Terraform) | `terraform/main.tf` | Public S3 ACL, SSH open to 0.0.0.0/0, IAM policy with `*` |
 | Cloud (CloudFormation) | `cloudformation/rds.yaml` | Unencrypted, public RDS with a password in the template |
+| Cloud (Azure ARM) | `azure/storage.json` | Storage account allowing HTTP, public blob access, TLS 1.0, open network ACL |
 | Service | `service/requirements.txt` | Pinned vulnerable Flask, Werkzeug, Requests, PyYAML, Jinja2, urllib3 |
 
 `service/` is a minimal Flask app kept separate from `app/` because qscanner's automated-remediation
