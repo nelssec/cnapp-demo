@@ -42,3 +42,7 @@ GitHub releases tagged `qscanner-<version>` on this repo. Two ways to fetch it:
   (default: latest `qscanner-*` release). Output: `path` to the downloaded binary.
 
 See `.github/workflows/pr-scan.yml` for a full example of the action driving a scan.
+
+Maintainers publish new builds with `scripts/publish-qscanner.sh <version>`, which uploads a
+release built from an internal branch - this stands in for a real release workflow until the
+scanner build itself lives in a publishable pipeline.

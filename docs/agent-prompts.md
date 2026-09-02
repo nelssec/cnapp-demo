@@ -37,17 +37,27 @@ a flat list.
 
 ## 3. Generated code fixes [4.3.1, 4.3.4]
 
-> Call generate_fix on the last scan report and apply the exact-confidence fixes to the
-> files in this workspace. Do not commit yet. Show me the diff.
+> Run code_scan on this repository with scan_types ["sca", "secret", "iac"] and engine
+> "local", then call generate_fix on that report_path and apply the exact-confidence fixes
+> to the files in this workspace. Do not commit yet. Show me the diff.
+
+Running `code_scan` with `engine "local"` first matters: it makes Terraform get evaluated
+locally too (so it shows up as `AWS-*` findings) instead of being sent to the Qualys IaC
+backend, which is what `generate_fix` needs to be able to return an exact fix for it.
 
 Expected: `generate_fix` returns one entry per finding (`finding_id`, `kind` `dependency` or
 `iac`, `file_path`, `start_line`/`end_line`, `explanation`, `fix`, `fix_language`,
-`confidence` `exact` or `guided`, `apply_hint`). The agent applies only the `exact`-confidence
-entries: `terraform/main.tf` (private ACL plus an `aws_s3_bucket_public_access_block`, the SSH
-`cidr_blocks` narrowed), the Helm deployment (`privileged: false`, `runAsNonRoot: true`), the
-`Dockerfile` (a non-root `USER`, a `HEALTHCHECK`, `COPY` instead of `ADD`), and
-`app/package.json` dependency version bumps. `guided`-confidence entries (for example the IAM
-policy's `Action`/`Resource` scope) are left for review, per `apply_hint`.
+`confidence` `exact` or `guided`, `apply_hint`). `confidence: exact` only comes back for
+findings in `generate_fix`'s curated table of local check IDs (`KSV-*`, `DS-*`, `AWS-*`), so
+with the local engine this covers the Helm deployment (`privileged: false`,
+`runAsNonRoot: true`), the `Dockerfile` (a non-root `USER`, a `HEALTHCHECK`, `COPY` instead
+of `ADD`), and `terraform/main.tf` (private ACL plus an `aws_s3_bucket_public_access_block`,
+the SSH `cidr_blocks` narrowed) - plus a unified diff for `service/requirements.txt`
+dependency bumps. Anything evaluated by the Qualys backend (`CID-*` check IDs - which is what
+you'd get for Terraform/CloudFormation without `engine "local"`) comes back `guided` with the
+remediation text in `explanation`/`apply_hint` rather than an auto-applicable fix, same as any
+other finding outside the curated table (for example the IAM policy's `Action`/`Resource`
+scope). Leave `guided` entries for review, per `apply_hint`.
 
 ## 4. Automated remediation pull request [4.3.2]
 
@@ -57,9 +67,14 @@ policy's `Action`/`Resource` scope) are left for review, per `apply_hint`.
 Expected: the agent scans, fixes, re-scans, creates a branch off `main` (default `fail_on`
 is `high`), and opens a pull request against `nelssec/cnapp-demo` with a findings table —
 similar in spirit to the existing `qscanner/auto-remediation` PR (#2), which bumps the
-`service/requirements.txt` pins. The `PR security scan` workflow then runs on that PR and the
-QScanner findings check should go green, or show only the remaining findings below the
-`fail_on` threshold.
+`service/requirements.txt` pins. The `PR security scan` workflow then runs on that PR, but it
+does not go green: on PR #2's [run](https://github.com/nelssec/cnapp-demo/actions/runs/33614465983)
+the summary comment shows the dependency vulnerability count dropping from 78 (main) to 0
+while the IaC gate still fails on the untouched Terraform/Helm files - remediation of one
+class of finding does not unblock the others. (That particular 0 also coincided with the
+SCA backend's vulnerability-report fetch exhausting its retries with repeated 404s, so don't
+read it as proof every dependency finding was fixed - only that the six bumped pins are no
+longer the picture, and the gate cares about IaC regardless.)
 
 ## 5. Automated recommendations [4.3.4]
 
