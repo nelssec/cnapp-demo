@@ -92,8 +92,8 @@ jobs:
           branch: qscanner/auto-remediation
           delete-branch: true
           commit-message: "Bump vulnerable dependencies to fixed versions (QScanner patch)"
-          author: "Andrew Nelson <anelson@nelssec.com>"
-          committer: "Andrew Nelson <anelson@nelssec.com>"
+          author: "Andrew Nelson <andrew@nelssec.com>"
+          committer: "Andrew Nelson <andrew@nelssec.com>"
           title: "Security: bump vulnerable dependencies (QScanner)"
           body-path: qscanner-output/pr-body.md
           labels: security,dependencies
