@@ -1,0 +1,157 @@
+name: Build, scan image, gate, push
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      force_push:
+        description: Push the image even if the gate fails (demo only)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: write
+  checks: write
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  build-scan-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: |
+          set -euo pipefail
+          docker build \
+            --label org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }} \
+            --label org.opencontainers.image.revision=${{ github.sha }} \
+            --label org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+            --label com.qualys.cnapp-demo.pipeline=github-actions \
+            --label com.qualys.cnapp-demo.run-id=${{ github.run_id }} \
+            --label com.qualys.cnapp-demo.actor=${{ github.actor }} \
+            -t "$IMAGE:${{ github.sha }}" -t "$IMAGE:latest" .
+
+      - name: Setup qscanner
+        id: qs
+        uses: ./.github/actions/setup-qscanner
+
+      - name: Verify qscanner
+        run: |
+          set -uo pipefail
+          "${{ steps.qs.outputs.path }}" --version
+
+      - name: Scan image (packages, secrets, CIS Docker compliance)
+        id: scan
+        env:
+          QUALYS_ACCESS_TOKEN: ${{ secrets.QUALYS_ACCESS_TOKEN }}
+          QUALYS_POD: ${{ vars.QUALYS_POD || 'CA1' }}
+          POLICY_TAGS: ${{ vars.QUALYS_POLICY_TAGS }}
+        run: |
+          # GitHub's default bash for run steps is `bash -eo pipefail`; drop -e so the
+          # pipeline's exit code reaches the rc= capture below instead of aborting the step.
+          set +e
+          set -uo pipefail
+          mkdir -p qscanner-output
+          MODE_ARGS=(--mode get-report)
+          if [[ -n "$POLICY_TAGS" ]]; then MODE_ARGS=(--mode evaluate-policy --policy-tags "$POLICY_TAGS"); fi
+          # pkg replaces the older os/sca split in this qscanner build (see `qscanner image --help`);
+          # it covers both OS and application (npm) package vulnerabilities in one scan type.
+          "${{ steps.qs.outputs.path }}" --pod "$QUALYS_POD" \
+            "${MODE_ARGS[@]}" \
+            --scan-types pkg,secret,compliance \
+            --compliance-benchmarks DOCKER_CIS \
+            --report-format table,sarif,json \
+            -o qscanner-output \
+            image "$IMAGE:${{ github.sha }}" 2>&1 | tee qscanner-output/image-scan.log
+          rc=${PIPESTATUS[0]}
+          echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
+          echo "sarif=$(ls qscanner-output/*-Report.sarif.json 2>/dev/null | head -1)" >> "$GITHUB_OUTPUT"
+          echo "qscanner exit code: $rc"
+          # Exit codes from this qscanner build (see release README "Exit codes"):
+          #   0  = EXIT_SUCCESS (or ALLOW, in evaluate-policy mode)
+          #   40 = EXIT_FAILED_TO_GET_VULN_REPORT   - backend didn't return the vuln report in
+          #        time; secret/compliance findings are still in the SARIF, so warn and continue.
+          #   41 = EXIT_FAILED_TO_GET_POLICY_EVALUATION_RESULT - same, for evaluate-policy mode.
+          #   42 = EXIT_POLICY_EVALUATION_DENY, 43 = EXIT_POLICY_EVALUATION_AUDIT - only reachable
+          #        in evaluate-policy mode; these are expected, handled outcomes for the Gate step
+          #        below, not scan errors.
+          # Anything else non-zero means the scan itself failed.
+          if [[ $rc -eq 40 || $rc -eq 41 ]]; then
+            echo "::warning::qscanner could not fetch the report from the Qualys backend in time (exit $rc); secret/compliance findings already collected are still reported"
+          elif [[ $rc -ne 0 && $rc -ne 42 && $rc -ne 43 ]]; then
+            echo "::error::qscanner exited $rc (not a policy evaluation result) - treating this as a scan failure"
+            exit "$rc"
+          fi
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qscanner-image-reports
+          path: qscanner-output/
+
+      - name: Gate
+        id: gate
+        env:
+          POLICY_TAGS: ${{ vars.QUALYS_POLICY_TAGS }}
+        run: |
+          set -uo pipefail
+          rc='${{ steps.scan.outputs.exit_code }}'
+          sarif='${{ steps.scan.outputs.sarif }}'
+          if [[ -n "$POLICY_TAGS" ]]; then
+            # A CA1 policy is configured: gate strictly on the Qualys policy evaluation verdict.
+            if [[ "$rc" == "42" ]]; then
+              echo "::error::Qualys policy evaluation returned DENY for $IMAGE:${{ github.sha }} (qscanner exit 42, policy tags: $POLICY_TAGS). Image will not be pushed."
+              echo "passed=false" >> "$GITHUB_OUTPUT"
+            elif [[ "$rc" == "43" ]]; then
+              echo "::warning::No CA1 policy matched tags '$POLICY_TAGS' (qscanner exit 43, AUDIT) - nothing was evaluated, so the gate is treated as passed."
+              echo "passed=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "passed=true" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            # No CA1 policy is configured for this demo (QUALYS_POLICY_TAGS unset): gate on the
+            # vulnerability/compliance report content itself. qscanner's SARIF marks high/critical
+            # severity findings (vulnerabilities and failed compliance checks alike) as level "error".
+            critical=0
+            if [[ -n "$sarif" && -f "$sarif" ]]; then
+              critical=$(jq '[.runs[0].results[]? | select(.level=="error")] | length' "$sarif")
+            fi
+            echo "critical_findings=$critical" >> "$GITHUB_OUTPUT"
+            if [[ "$critical" -gt 0 ]]; then
+              echo "::error::$critical high/critical-severity finding(s) (package vulnerabilities and/or failed Docker CIS compliance checks) in the qscanner image report for $IMAGE:${{ github.sha }}. No CA1 policy is configured for this demo, so the gate blocks on report content instead of a policy verdict - see the qscanner-image-reports artifact (image-scan.log, *-Report.sarif.json) for details. Image will not be pushed."
+              echo "passed=false" >> "$GITHUB_OUTPUT"
+            else
+              echo "passed=true" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Log in to GHCR
+        if: steps.gate.outputs.passed == 'true' || github.event.inputs.force_push == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Push image
+        if: steps.gate.outputs.passed == 'true' || github.event.inputs.force_push == 'true'
+        run: |
+          set -euo pipefail
+          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:latest"
+          echo "Pushed $IMAGE:${{ github.sha }} (commit ${{ github.sha }}, run ${{ github.run_id }}, actor ${{ github.actor }})"
+
+      - name: Fail job when gate failed
+        if: steps.gate.outputs.passed != 'true'
+        run: |
+          if [[ "${{ github.event.inputs.force_push }}" == "true" ]]; then
+            echo "::warning::Gate failed but force_push was set - image was pushed anyway (demo override)."
+          fi
+          exit 1

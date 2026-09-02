@@ -19,7 +19,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      # For pull requests check out the PR head commit, not the synthetic merge commit:
+      # the Qualys backend creates the code asset from the repository remote and the
+      # commit, and a merge ref that exists only on the runner never gets an SCA report.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Setup qscanner
         id: qs
@@ -56,7 +61,9 @@ jobs:
             code . 2>&1 | tee qscanner-output/scan.log
           rc=${PIPESTATUS[0]}
           echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
-          echo "sarif=$(ls qscanner-output/*-Report.sarif.json | head -1)" >> "$GITHUB_OUTPUT"
+          sarif=$(ls qscanner-output/*-Report.sarif.json 2>/dev/null | head -1 || true)
+          echo "sarif=$sarif" >> "$GITHUB_OUTPUT"
+          [[ -n "$sarif" ]] || echo "::warning::no SARIF report was written (qscanner exit $rc)"
           echo "qscanner exit code: $rc"
           # 72 = IaC gate (from --iac-fail-on); that is an expected, handled outcome, not a
           # scan error, so it falls through to the annotate/enforce-gate steps below.
