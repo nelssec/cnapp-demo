@@ -68,13 +68,12 @@ Expected: the agent scans, fixes, re-scans, creates a branch off `main` (default
 is `high`), and opens a pull request against `nelssec/cnapp-demo` with a findings table —
 similar in spirit to the existing `qscanner/auto-remediation` PR (#2), which bumps the
 `service/requirements.txt` pins. The `PR security scan` workflow then runs on that PR, but it
-does not go green: on PR #2's [run](https://github.com/nelssec/cnapp-demo/actions/runs/33614465983)
-the summary comment shows the dependency vulnerability count dropping from 78 (main) to 0
+does not go green: on PR #2's [run](https://github.com/nelssec/cnapp-demo/actions/runs/33622728123)
+the summary comment shows the dependency vulnerability count dropping from 78 (main) to 64
 while the IaC gate still fails on the untouched Terraform/Helm files - remediation of one
-class of finding does not unblock the others. (That particular 0 also coincided with the
-SCA backend's vulnerability-report fetch exhausting its retries with repeated 404s, so don't
-read it as proof every dependency finding was fixed - only that the six bumped pins are no
-longer the picture, and the gate cares about IaC regardless.)
+class of finding does not unblock the others. The six bumped `service/requirements.txt` pins
+remove 14 findings; the remaining 64 are npm packages in `app/`, which `qscanner patch` does
+not rewrite today (the `generate_fix` tool still returns guided fixes for them).
 
 ## 5. Automated recommendations [4.3.4]
 
