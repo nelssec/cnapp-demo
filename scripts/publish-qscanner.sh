@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Publish locally built qscanner tarballs as a GitHub release on nelssec/cnapp-demo.
-# Usage: scripts/publish-qscanner.sh <version>   (e.g. 5.3.0-cnapp1)
+# Usage: scripts/publish-qscanner.sh <version>   (e.g. 5.3.0-cnapp2)
 set -euo pipefail
 
-VERSION="${1:?version required, e.g. 5.3.0-cnapp1}"
+VERSION="${1:?version required, e.g. 5.3.0-cnapp2}"
 SRC="${SRC:-/Users/anelson/git_base/qscanner-develop/output/release}"
 REPO="nelssec/cnapp-demo"
 TAG="qscanner-${VERSION}"

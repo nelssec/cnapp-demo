@@ -1,0 +1,99 @@
+name: PR security scan
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+  security-events: write
+
+jobs:
+  qscanner-code:
+    name: QScanner code scan (SCA, secrets, IaC)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup qscanner
+        id: qs
+        uses: ./.github/actions/setup-qscanner
+
+      - name: Verify qscanner
+        run: |
+          set -uo pipefail
+          "${{ steps.qs.outputs.path }}" --version
+
+      - name: Scan repository
+        id: scan
+        env:
+          QUALYS_ACCESS_TOKEN: ${{ secrets.QUALYS_ACCESS_TOKEN }}
+          QUALYS_POD: ${{ vars.QUALYS_POD || 'CA1' }}
+          # Terraform/CloudFormation are evaluated by the Qualys IaC backend (and show up on
+          # TotalCloud IaC Posture with CID-<n> check IDs) when these creds are set; Helm,
+          # Kubernetes, and Dockerfile are always evaluated locally (KSV-/DS-/AWS-<n> checks).
+          QUALYS_IAC_USERNAME: ${{ secrets.QUALYS_IAC_USERNAME }}
+          QUALYS_IAC_PASSWORD: ${{ secrets.QUALYS_IAC_PASSWORD }}
+          QUALYS_IAC_AUTH_TYPE: basic
+        run: |
+          set -uo pipefail
+          mkdir -p qscanner-output
+          "${{ steps.qs.outputs.path }}" --pod "$QUALYS_POD" \
+            --scan-types sca,secret,iac \
+            --iac-fail-on high \
+            --report-format table,sarif,json \
+            --exclude-dirs '**/node_modules' \
+            -o qscanner-output \
+            code . 2>&1 | tee qscanner-output/scan.log
+          rc=${PIPESTATUS[0]}
+          echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
+          echo "sarif=$(ls qscanner-output/*-Report.sarif.json | head -1)" >> "$GITHUB_OUTPUT"
+          echo "qscanner exit code: $rc"
+          # 72 = IaC gate (from --iac-fail-on); that is an expected, handled outcome, not a
+          # scan error, so it falls through to the annotate/enforce-gate steps below.
+          # Anything else non-zero means the scan itself failed.
+          # 40 = the backend did not return the SCA vulnerability report in time. IaC and
+          # secret findings are still in the SARIF, so warn and continue rather than fail.
+          if [[ $rc -eq 40 ]]; then
+            echo "::warning::SCA vulnerability report not available from the Qualys backend yet (qscanner exit 40); IaC and secret findings are still reported"
+          elif [[ $rc -ne 0 && $rc -ne 72 ]]; then
+            echo "::error::qscanner exited $rc (not the IaC gate exit 72) - treating this as a scan failure"
+            exit "$rc"
+          fi
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qscanner-reports
+          path: qscanner-output/
+
+      - name: Annotate pull request
+        if: always() && steps.scan.outputs.sarif != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const annotate = require('./.github/scripts/annotate.js');
+            await annotate({ github, context, core,
+              sarifPath: '${{ steps.scan.outputs.sarif }}',
+              gateExitCode: Number('${{ steps.scan.outputs.exit_code }}') });
+
+      - name: Upload SARIF to code scanning (best effort)
+        if: always() && steps.scan.outputs.sarif != ''
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ steps.scan.outputs.sarif }}
+          category: qscanner
+
+      - name: Enforce gate
+        if: steps.scan.outputs.exit_code == '72'
+        run: |
+          echo "::error::IaC gate failed (qscanner exit 72). See the 'QScanner findings' check for file and line annotations."
+          exit 1

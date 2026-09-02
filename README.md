@@ -20,3 +20,25 @@ patcher supports `requirements.txt` but not `package.json`, so this manifest is 
 automated-remediation flow.
 
 See `RUNBOOK.md` for the demo flow and `docs/agent-prompts.md` for the VS Code and Devin prompts.
+
+## Getting the scanner
+
+This repo publishes a custom QScanner build (with IaC scanning and MCP remediation tools) as
+GitHub releases tagged `qscanner-<version>` on this repo. Two ways to fetch it:
+
+- **Locally / in a script:** `scripts/get-qscanner.sh [dest_dir]` downloads the right binary for
+  your OS/arch from the newest `qscanner-*` release (or `QSCANNER_RELEASE_TAG` if set), verifies
+  its checksum, and prints the path to the binary.
+- **In a GitHub Actions workflow:** use the composite action `.github/actions/setup-qscanner`,
+  which wraps the same script:
+
+  ```yaml
+  - uses: ./.github/actions/setup-qscanner
+    id: qs
+  - run: "${{ steps.qs.outputs.path }}" --version
+  ```
+
+  Inputs: `dest` (download directory, default `${{ runner.temp }}/qscanner`) and `release_tag`
+  (default: latest `qscanner-*` release). Output: `path` to the downloaded binary.
+
+See `.github/workflows/pr-scan.yml` for a full example of the action driving a scan.

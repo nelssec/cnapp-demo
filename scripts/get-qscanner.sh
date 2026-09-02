@@ -13,7 +13,7 @@ arch=$(uname -m)
 case "$arch" in
   x86_64|amd64) arch=amd64 ;;
   arm64|aarch64) arch=arm64 ;;
-  *) echo "unsupported arch $arch"; exit 1 ;;
+  *) echo "unsupported arch $arch" >&2; exit 1 ;;
 esac
 platform="${os}-${arch}"
 
@@ -21,7 +21,7 @@ TAG="${QSCANNER_RELEASE_TAG:-}"
 if [[ -z "$TAG" ]]; then
   TAG=$(gh release list --repo "$REPO" --limit 50 --json tagName -q '[.[] | select(.tagName | startswith("qscanner-"))][0].tagName')
 fi
-[[ -n "$TAG" ]] || { echo "no qscanner-* release found in $REPO"; exit 1; }
+[[ -n "$TAG" ]] || { echo "no qscanner-* release found in $REPO" >&2; exit 1; }
 
 tmp=$(mktemp -d)
 gh release download "$TAG" --repo "$REPO" --dir "$tmp" --pattern "*.${platform}.tar.gz" --pattern SHA256SUMS
