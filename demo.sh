@@ -149,7 +149,7 @@ echo "  Prompt 2  Secrets and compliance view          [4.2.4, 4.2.6]"
 echo "  Prompt 3  Generated code fixes                 [4.3.1, 4.3.4]"
 echo "  Prompt 4  Automated remediation pull request   [4.3.2]"
 echo "  Prompt 5  Automated recommendations            [4.3.4]"
-echo "  Prompt 6  Policy enforcement in the IDE         [4.3.3]"
+echo "  Prompt 6  Policy enforcement in the developer workflow         [4.3.3]"
 echo "  Prompt 7  Stakeholder views (5 audiences)       [4.4.1-4.4.5]"
 echo
 echo "  Live artifacts:"
