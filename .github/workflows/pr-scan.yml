@@ -42,6 +42,9 @@ jobs:
           QUALYS_IAC_PASSWORD: ${{ secrets.QUALYS_IAC_PASSWORD }}
           QUALYS_IAC_AUTH_TYPE: basic
         run: |
+          # GitHub's default bash for run steps is `bash -eo pipefail`; drop -e so the
+          # pipeline's exit code reaches the rc= capture below instead of aborting the step.
+          set +e
           set -uo pipefail
           mkdir -p qscanner-output
           "${{ steps.qs.outputs.path }}" --pod "$QUALYS_POD" \
