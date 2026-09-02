@@ -15,7 +15,7 @@ and IaC credentials the first time the server starts, per the `inputs` in `.vsco
 > misconfigurations grouped by file, with the line numbers.
 
 Expected: a list naming `terraform/main.tf` (`aws_s3_bucket.uploads` ACL `public-read`, SSH
-open to `0.0.0.0/0` in `aws_security_group.app`, `aws_iam_role_policy.app_admin` with
+open to `0.0.0.0/0` in `aws_security_group.app`, `aws_iam_policy.app_admin` with
 `Action = "*"` / `Resource = "*"`), `helm/cnapp-demo/templates/deployment.yaml` (`privileged:
 true`, `runAsUser: 0`, `hostPath` mount of `/var/run/docker.sock`), and
 `cloudformation/rds.yaml` (`StorageEncrypted: false`, `PubliclyAccessible: true`, a plaintext
