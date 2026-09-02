@@ -101,4 +101,8 @@ make.
 
 If the agent asks for `scan_report_path`, tell it: "Use the `report_path` returned by the
 most recent scan call (`iac_scan`, `code_scan`, `code_sca_scan`, or `container_image_scan`)."
-Scan tools write reports as `*-Report.json` under `~/qualys/qscanner/data/mcp-scans/`.
+Scan tools write reports as `*-Report.json` under a per-scan-ID subdirectory of
+`~/qualys/qscanner/data/` (e.g. `~/qualys/qscanner/data/<scan_id>/<hash>-Report.json`), not a
+flat `mcp-scans/` folder as an earlier draft of this doc said. The `report_path` field in the
+tool's own output (a plain `report_path: <path>` line in the default `toon` output format) is
+the reliable way to get this — do not guess the path from the scan ID alone.

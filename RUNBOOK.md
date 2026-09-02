@@ -78,10 +78,155 @@ Prerequisites (do these the day before):
 - **Docker daemon not running:** `./demo.sh --fast` skips the image build/scan (section 4);
   narrate 4.2.5/4.2.7 from the recorded build-and-gate run instead.
 
-## Outcome log (fill in after the rehearsal)
+## Outcome log (rehearsed 2026-09-02)
 
-- `build-and-gate` gate result with and without `QUALYS_POLICY_TAGS` set:
-- PR #1 inline annotation count:
-- Time for a full `./demo.sh` run (not `--fast`):
-- Time for `./demo.sh --fast`:
-- Any exit code other than 0/72 seen in section 1, 3, or 5, and why (71 = the IaC scan itself failed; 40 = the Qualys backend did not return the SCA vulnerability report; both are narrated by demo.sh):
+Release used: `qscanner-5.3.0-cnapp5` (latest at rehearsal time; `scripts/get-qscanner.sh
+.qscanner` fetched it without issue - `qscanner-5.3.0-cnapp5.linux-amd64.tar.gz` and
+`...darwin-arm64.tar.gz` were both present and matched their SHA256SUMS entries).
+
+### Terminal (`./demo.sh`)
+
+- `build-and-gate` gate result: no `QUALYS_POLICY_TAGS` is set for this demo, so the gate
+  (both in `./demo.sh` section 5 and in `build-and-gate.yml`) always blocks on report content
+  (high/critical findings), not a policy verdict - see the "Gate reason" note under GitHub
+  below for the exact wording.
+- PR #1 inline annotation count: 124 (see GitHub section below).
+- Time for a full `./demo.sh` run (Docker running, not `--fast`): **3m 19s** (`3:19.19 total`
+  per `time`; wall clock 03:16:29-03:19:49 PDT).
+- Time for `./demo.sh --fast`: **2m 52s** (`2:51.67 total`; section 4 skipped).
+- Per-section exit codes (full run): section 1 (IaC) - first pass with
+  `QUALYS_IAC_USERNAME`/`PASSWORD` set exited 0 but the Qualys IaC backend scan itself ended
+  in `ERROR` (see below), so no `CID-` checks came back; `demo.sh` auto-retried with
+  `--iac-engine local` per its detection logic, also exit 0 (162 checks passed / 26 failed
+  the first pass, 251 passed / 42 failed after the local-only fallback covered
+  Terraform/CloudFormation too). Section 2 (secrets): exit 0. Section 3 (SCA): exit 0 (see
+  backend retry note below - no 40 seen). Section 4 (image): exit 0. Section 5 (gate): exit
+  72, as expected (IaC gate failing on high/critical misconfigurations - the same gate PR #1
+  fails). No exit 71 or 40 was seen in this rehearsal.
+- IaC backend behaviour observed: the Qualys IaC backend scan (`2a6cbf5f-adad-...`) was
+  `SUBMITTED` then came back `ended in ERROR` (not the 500 the code comment anticipates, but
+  the same effective outcome - no `CID-` results). `demo.sh` detected the absence of
+  `CID-` checks in the report and transparently re-ran with `--iac-engine local`, which is
+  the documented, expected fallback; the visible table still covered Terraform and
+  CloudFormation, just with `AWS-<n>` check IDs instead of `CID-<n>`. Nothing in the demo
+  narration needs to change for this - it is exactly the fallback path `demo.sh` and the
+  Runbook already describe - but presenters should expect `AWS-<n>` IDs on the night unless
+  the backend has recovered.
+- SCA count: **78** dependency vulnerabilities (after 4 retries on `404 Not Found` fetching
+  the vulnerability report, ~50s total backend latency - well within the exit-40 timeout).
+- Secret count: **2** (AWS Access Key Id + AWS Secret Access Key in
+  `helm/cnapp-demo/values.yaml:9-10`, both CRITICAL).
+- Image vuln count: **321** package vulnerabilities for `cnapp-demo:local` (comment in
+  `demo.sh` says "~369" - actual count drifts run to run with the upstream Debian/npm
+  advisory feed; 321 is normal and does not need a `demo.sh` update).
+- Docker CIS: **PASS 1 / FAIL 4** - `DOCKER_CIS 4.1` (no non-root `USER`, HIGH), `4.6` (no
+  `HEALTHCHECK`, MEDIUM), `4.7` (update instruction alone in a layer, MEDIUM), `4.9` (`ADD`
+  instead of `COPY`, MEDIUM); `4.10` (no secrets in the Dockerfile) PASSED.
+
+### GitHub (read-only, via `gh`)
+
+- PR #1 (https://github.com/nelssec/cnapp-demo/pull/1, `demo/open-ingress`, head
+  `c79440c`): check-runs on the head commit show `QScanner findings` -
+  **failure, 124 annotations** and `QScanner code scan (SCA, secrets, IaC)` - failure, 7
+  annotations. The `<!-- qscanner-summary -->` PR comment is present: 78 dependency
+  vulnerabilities, 2 secrets, 44 IaC misconfigurations, 0 compliance, **Gate: FAILED
+  (qscanner exit 72)**. PR is still open.
+- PR #2 (https://github.com/nelssec/cnapp-demo/pull/2, `qscanner/auto-remediation`, head
+  `c954e75`): still open; diff is exactly `service/requirements.txt`, 6 lines changed
+  (flask 2.0.1->2.2.5, werkzeug 2.0.1->2.3.8, requests 2.25.1->2.33.0, pyyaml 5.3.1->5.4,
+  jinja2 2.11.2->2.11.3, urllib3 1.26.4->1.26.19).
+- Latest `PR security scan` run for PR #1 itself: **failure** (124 annotations, expected -
+  this is the gate working as designed). Latest `PR security scan` run overall (push to
+  `main`, run 33618217040): also failure, for the same reason `main` itself carries the
+  baseline misconfigurations.
+- Latest `Build, scan image, gate, push` run (33618216985, push to `main`): **failure**, but
+  for an unexpected reason unrelated to the security gate - it failed at the "Setup
+  qscanner" step with `no assets match the file pattern` (a transient race between
+  publishing release assets and the very next workflow run picking up that release; a
+  `gh release download` for the same tag succeeded seconds later from this machine). The
+  actual gate mechanism was last exercised cleanly on run 33616565172 (push to `main`,
+  slightly earlier): image built, qscanner scanned it, **Gate step failed with 318
+  high/critical findings** ("No CA1 policy is configured for this demo, so the gate blocks
+  on report content instead of a policy verdict... Image will not be pushed."), `Push image`
+  skipped, job failed via the deliberate "Fail job when gate failed" step. This is the
+  behavior to narrate; if the flaky asset-fetch failure recurs on demo night, re-running the
+  workflow (`gh run rerun <id> --repo nelssec/cnapp-demo`) should clear it since the release
+  itself is intact.
+
+### MCP surface rehearsed headlessly
+
+Per the controller ruling, VS Code and Devin sessions need a human, so the MCP surface itself
+was rehearsed by driving `qscanner mcp --pod CA1` directly over stdio with raw JSON-RPC
+(`initialize` -> `notifications/initialized` -> `tools/list` -> `tools/call`), from the fresh
+`.qscanner/qscanner` binary, `QUALYS_ACCESS_TOKEN`/`QUALYS_IAC_USERNAME`/`PASSWORD` sourced
+from `~/.config/cnapp-demo/iac.env`.
+
+- `tools/list`: 11 tools registered (`code_sca_scan`, `code_scan`, `compare_scans`,
+  `container_image_scan`, `evaluate_security_policy`, `generate_fix`,
+  `get_remediation_suggestions`, `get_scan_summary`, `get_vulnerability_details`, `iac_scan`,
+  `stakeholder_report`), plus 8 MCP prompts and 1 static + 3 template resources per the
+  server's own startup log. Schemas matched `docs/agent-prompts.md` (`iac_scan` takes
+  `target`/`iac_types`/`engine`/`fail_on`; `generate_fix`/`stakeholder_report`/
+  `get_scan_summary` take `scan_report_path`, not `report_path`).
+- `iac_scan` (`target=<repo path>`, `iac_types=[helm,kubernetes,dockerfile]`,
+  `engine=local`): completed in ~1s (no backend call). Headline: 26 misconfigurations, 162
+  checks passed, risk driven by 5 HIGH findings (root user, hostPath docker.sock mount,
+  default security context, non-read-only rootfs, privileged). Counts by severity - high 5,
+  medium 6, low 15. Counts `by_framework` - `qualys-kspm` 19, `kubescape` 20, `cis-k8s-1.9`
+  12, `pss-v1.31` 11, `cis-docker-1.7` 4 (a finding can map to more than one framework).
+- `generate_fix` on that report: 26 fixes returned. First two: `DS-0002` (Dockerfile root
+  user, **confidence: exact**, fix adds a non-root `USER`) and `KSV-0006` (hostPath
+  `docker.sock` mount, **confidence: guided** - a suggested manifest edit for review, not an
+  auto-apply).
+- `stakeholder_report` audience `ciso`: headline "0 vulnerabilities, 0 exposed secrets, 26
+  misconfigurations. Highest severity: high. All have known fixes." with a "Top risks in
+  plain language" section and 3 recommended actions (approve the CI gate policy, fund
+  credential rotation, request a monthly trend report).
+- `stakeholder_report` audience `devops`: headline "2 file(s) need changes: 0 dependency
+  vulnerabilities, 0 exposed secrets, 26 IaC misconfigurations", with a per-file checklist
+  (`Dockerfile`, `helm/cnapp-demo/templates/deployment.yaml`) giving line numbers and fixes.
+- `get_scan_summary`: `risk_level: high`, `total_misconfigurations: 26`,
+  `iac_checks_passed: 162`, `total_secrets: 0`, `total_vulnerabilities: 0` (scope was IaC
+  only, so no SCA/secret counts here - that matches `code_scan` being the tool for a
+  combined view).
+- Doc fix: `docs/agent-prompts.md` ("Finding the report path") said reports land under
+  `~/qualys/qscanner/data/mcp-scans/`; the actual path observed in every one of the calls
+  above was a per-scan-ID subdirectory of `~/qualys/qscanner/data/` (e.g.
+  `~/qualys/qscanner/data/<scan_id>/<hash>-Report.json`) with no `mcp-scans/` folder at all.
+  Updated the doc to say so and to point agents at the tool's own `report_path` field rather
+  than guessing the path.
+
+### VS Code and Devin (not rehearsed unattended)
+
+- **VS Code - PRESENTER: not rehearsed unattended.** Run Prompt 1 (IDE IaC scanning), Prompt
+  3 (generated code fixes), Prompt 5 (automated recommendations), and Prompt 6 (policy
+  enforcement) from `docs/agent-prompts.md` in Copilot Chat agent mode with the `qscanner`
+  MCP server connected. Expect the same findings and fix content shown in the headless MCP
+  rehearsal above (grouped by file with line numbers for Prompt 1; the `DS-0002` exact-fix
+  and `KSV-0006` guided-fix pattern for Prompt 3; severity-ordered suggestions spanning IaC
+  and dependency fixes for Prompt 5; a reported gate failure citing `terraform/main.tf` and
+  the Helm deployment for Prompt 6).
+- **Devin - PRESENTER: not rehearsed unattended.** Run Prompt 4 (automated remediation pull
+  request: `remediate_and_open_pr` with `repository_path` set to this repo and `base_branch
+  main`) in a Devin session per `devin/README.md`, then wait for the `PR security scan`
+  workflow to complete on the new PR. Expect a new PR shaped like the existing
+  `qscanner/auto-remediation` PR #2 (a findings table plus dependency pins bumped), and the
+  `QScanner findings` check on it to go green or show only sub-`fail_on` findings. Prompt 7
+  (stakeholder views, all five audiences) can run in either VS Code or Devin; expect the same
+  shape of output as the `ciso`/`devops` results captured in the headless rehearsal above,
+  plus `cloud_security`, `secops`, and `infra_ops` briefings.
+
+### Before the demo (do the day before)
+
+- [ ] Refresh `QUALYS_ACCESS_TOKEN` (it is a JWT and expires): get a fresh CS token, update
+      `~/.config/cnapp-demo/iac.env`, and push it to CI: `gh secret set QUALYS_ACCESS_TOKEN
+      --repo nelssec/cnapp-demo`.
+- [ ] Confirm PR #1 and PR #2 are still open: `gh pr view 1 --repo nelssec/cnapp-demo` and
+      `gh pr view 2 --repo nelssec/cnapp-demo`.
+- [ ] Run `./demo.sh --fast` once so the binary, credentials, and network path are all
+      warm without waiting for the full ~3.5-minute run.
+- [ ] Open TotalCloud > Posture > IaC Posture, filtered to `nelssec/cnapp-demo`, in a browser
+      tab (this is where the Qualys IaC backend's `CID-<n>` results for
+      Terraform/CloudFormation show up when the backend is healthy).
+- [ ] Confirm VS Code is open on this repo with the `qscanner` MCP server from
+      `.vscode/mcp.json` connected (first launch prompts for the token and IaC credentials).
