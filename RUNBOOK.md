@@ -84,4 +84,4 @@ Prerequisites (do these the day before):
 - PR #1 inline annotation count:
 - Time for a full `./demo.sh` run (not `--fast`):
 - Time for `./demo.sh --fast`:
-- Any exit code other than 0/72 seen in section 1, 3, or 5, and why:
+- Any exit code other than 0/72 seen in section 1, 3, or 5, and why (71 = the IaC scan itself failed; 40 = the Qualys backend did not return the SCA vulnerability report; both are narrated by demo.sh):
