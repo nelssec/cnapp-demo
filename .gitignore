@@ -3,3 +3,7 @@ qscanner-output/
 .qscanner/
 *.tar.gz
 bin/
+
+# Terraform local state
+.terraform/
+.terraform.lock.hcl
