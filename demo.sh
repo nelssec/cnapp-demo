@@ -5,9 +5,12 @@
 #
 # Usage:
 #   source ~/.config/cnapp-demo/iac.env   # QUALYS_ACCESS_TOKEN, QUALYS_IAC_USERNAME/PASSWORD
-#   ./demo.sh [--fast]
+#   ./demo.sh [--fast|-f] [--keep-output]
 #
-# --fast skips section 4 (Docker build + image scan) and shortens the pauses between sections.
+# --fast/-f skips section 4 (Docker build + image scan) and shortens the pauses between
+# sections. --keep-output preserves an existing demo-output.prev/ (renaming it aside with a
+# timestamp) instead of overwriting it, in case you want to keep more than one prior run's
+# reports around.
 #
 # The binary comes from scripts/get-qscanner.sh, downloaded into .qscanner/ (git-ignored):
 #   scripts/get-qscanner.sh .qscanner
@@ -34,8 +37,15 @@ OUT="${OUT:-$HERE/demo-output}"
 IMAGE="${IMAGE:-cnapp-demo:local}"
 EXCLUDE='.superpowers/**'
 FAST=0
+KEEP_OUTPUT=0
 PAUSE="${PAUSE:-8}"
-[[ "${1:-}" == "--fast" ]] && { FAST=1; PAUSE=1; }
+for arg in "$@"; do
+  case "$arg" in
+    --fast|-f) FAST=1; PAUSE=1 ;;
+    --keep-output) KEEP_OUTPUT=1 ;;
+    *) echo "Unknown option: $arg (supported: --fast/-f, --keep-output)" >&2; exit 1 ;;
+  esac
+done
 
 CYAN='\033[1;36m'; GREEN='\033[1;32m'; YELLOW='\033[1;33m'; RED='\033[1;31m'; DIM='\033[2m'; RESET='\033[0m'
 
@@ -50,7 +60,15 @@ if [[ -z "${QUALYS_IAC_USERNAME:-}" || -z "${QUALYS_IAC_PASSWORD:-}" ]]; then
   note "QUALYS_IAC_USERNAME/PASSWORD not set: section 1 will use --iac-engine local for Terraform/CloudFormation instead of the Qualys IaC backend."
 fi
 
-rm -rf "$OUT"; mkdir -p "$OUT"
+if [[ -d "$OUT" ]]; then
+  if [[ "$KEEP_OUTPUT" -eq 1 && -d "$OUT.prev" ]]; then
+    mv "$OUT.prev" "$OUT.prev.$(date +%s)"
+  else
+    rm -rf "$OUT.prev"
+  fi
+  mv "$OUT" "$OUT.prev"
+fi
+mkdir -p "$OUT"
 
 clear
 echo -e "${GREEN}Qualys QScanner${RESET} $("$QSCANNER" --version 2>&1 | tail -1)  pod=$POD"
