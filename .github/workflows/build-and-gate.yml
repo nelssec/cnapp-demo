@@ -13,7 +13,6 @@ on:
 permissions:
   contents: read
   packages: write
-  checks: write
 
 env:
   IMAGE: ghcr.io/${{ github.repository }}

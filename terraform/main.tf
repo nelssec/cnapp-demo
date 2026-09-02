@@ -37,28 +37,14 @@ resource "aws_security_group" "app" {
   }
 }
 
-resource "aws_iam_role" "app" {
-  name = "cnapp-demo-app"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "ec2.amazonaws.com" }
-      Action    = "sts:AssumeRole"
-    }]
-  })
-}
-
-resource "aws_iam_role_policy" "app_admin" {
+# Planted finding: a wildcard IAM policy (Action "*" on Resource "*").
+# Expressed as a standalone aws_iam_policy because the Qualys IaC backend's
+# Terraform parser currently fails on aws_iam_role / aws_iam_role_policy blocks.
+resource "aws_iam_policy" "app_admin" {
   name = "cnapp-demo-app-admin"
-  role = aws_iam_role.app.id
   policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect   = "Allow"
-      Action   = "*"
-      Resource = "*"
-    }]
+    Version   = "2012-10-17"
+    Statement = [{ Effect = "Allow", Action = "*", Resource = "*" }]
   })
 }
 

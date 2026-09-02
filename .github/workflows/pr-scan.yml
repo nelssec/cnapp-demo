@@ -106,5 +106,9 @@ jobs:
       - name: Enforce gate
         if: steps.scan.outputs.exit_code == '72'
         run: |
-          echo "::error::IaC gate failed (qscanner exit 72). See the 'QScanner findings' check for file and line annotations."
+          if [[ -n "${{ steps.scan.outputs.sarif }}" ]]; then
+            echo "::error::IaC gate failed (qscanner exit 72). See the 'QScanner findings' check for file and line annotations."
+          else
+            echo "::error::IaC gate failed (qscanner exit 72). No SARIF was written, so there are no inline annotations; see the scan log and the qscanner-reports artifact."
+          fi
           exit 1
