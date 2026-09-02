@@ -167,13 +167,15 @@ was rehearsed by driving `qscanner mcp --pod CA1` directly over stdio with raw J
 `.qscanner/qscanner` binary, `QUALYS_ACCESS_TOKEN`/`QUALYS_IAC_USERNAME`/`PASSWORD` sourced
 from `~/.config/cnapp-demo/iac.env`.
 
-- `tools/list`: 11 tools registered (`code_sca_scan`, `code_scan`, `compare_scans`,
-  `container_image_scan`, `evaluate_security_policy`, `generate_fix`,
-  `get_remediation_suggestions`, `get_scan_summary`, `get_vulnerability_details`, `iac_scan`,
-  `stakeholder_report`), plus 8 MCP prompts and 1 static + 3 template resources per the
-  server's own startup log. Schemas matched `docs/agent-prompts.md` (`iac_scan` takes
-  `target`/`iac_types`/`engine`/`fail_on`; `generate_fix`/`stakeholder_report`/
-  `get_scan_summary` take `scan_report_path`, not `report_path`).
+- `tools/list`: 14 tools registered (`code_sca_scan`, `code_scan`, `compare_scans`,
+  `compliance_report`, `container_image_scan`, `evaluate_security_policy`, `finding_owners`,
+  `generate_fix`, `get_remediation_suggestions`, `get_scan_summary`, `get_vulnerability_details`,
+  `iac_scan`, `stakeholder_report`, `trace_finding`) - the 11 above plus the three analyst
+  tools - plus 9 MCP prompts (the 8 below plus `triage_to_owners`) and 1 static + 3 template
+  resources per the server's own startup log. Schemas matched `docs/agent-prompts.md`
+  (`iac_scan` takes `target`/`iac_types`/`engine`/`fail_on`;
+  `generate_fix`/`stakeholder_report`/`get_scan_summary` take `scan_report_path`, not
+  `report_path`). Re-verified against release `qscanner-5.3.0-cnapp6` on 2026-09-02.
 - `iac_scan` (`target=<repo path>`, `iac_types=[helm,kubernetes,dockerfile]`,
   `engine=local`): completed in ~1s (no backend call). Headline: 26 misconfigurations, 162
   checks passed, risk driven by 5 HIGH findings (root user, hostPath docker.sock mount,
@@ -201,18 +203,64 @@ from `~/.config/cnapp-demo/iac.env`.
   `~/qualys/qscanner/data/<scan_id>/<hash>-Report.json`) with no `mcp-scans/` folder at all.
   Updated the doc to say so and to point agents at the tool's own `report_path` field rather
   than guessing the path.
-- **Pending (analyst tools, not yet rehearsed at the time this row was written):** the release
-  this MCP surface was rehearsed against does not carry `compliance_report`, `trace_finding`,
-  or `finding_owners` yet. Once the release that does is rehearsed, `tools/list` should report
-  <n> tools (11 above plus these three) and `prompts/list` should report <n> prompts (8 above
-  plus `triage_to_owners`); `compliance_report` on the IaC report above should show <n>
-  frameworks failing <n> controls total, with CIS Kubernetes `5.2.2` failing on `KSV-0017` and
-  CIS Docker `4.1` failing on `DS-0002`; `trace_finding` on `KSV-0017` should return
-  `code.repository` `nelssec/cnapp-demo`, the last commit hash/author, and owner
-  `@nelssec/platform-team` from `CODEOWNERS`, plus (when an image report with GHCR labels is
-  available) `image.reference` <n> and `image.labels` <n>; `finding_owners` on the same report
-  should bucket findings under `@nelssec/cloud-security`, `@nelssec/platform-team`, and
-  `@nelssec/app-team` with `source: codeowners` and per-owner `counts.by_severity` <n>.
+- **Analyst tools rehearsed (release `qscanner-5.3.0-cnapp6`, 2026-09-02).** `scripts/get-qscanner.sh
+  .qscanner` fetched it without issue; `.qscanner/qscanner --version` reports
+  `5.3.0-cnapp6-0`. `./demo.sh --fast` (sections 1-3, 5-7) ran clean, exit 0 overall, in
+  **2m 11s**; per-section exit codes matched the earlier cnapp5 rehearsal (sections 1/2/3/6/7:
+  0; section 5 gate: 72, expected). Section 6's scorecard caption:
+  `Compliance Scorecard (10 framework(s), 89 control(s) failed, 0 passed)` - first three rows
+  all fall under `qualys-kspm`: `CID-45005 Non-root containers` (`KSV-0012, KSV-0105`),
+  `CID-45008 Allow privilege escalation` (`KSV-0001`), `CID-45009 Immutable container
+  filesystem` (`KSV-0014`). This matches `docs/agent-prompts.md` prompt 8's documented
+  "roughly 89 failed controls" almost exactly, so no rewording was needed there.
+  - MCP calls were driven against a broader code report than Task 7's (`.qscanner/qscanner
+    --pod CA1 --scan-types sca,secret,iac --report-format json -o demo-output/rehearsal code
+    .` - whole repo, default engine, no `--exclude-dirs`), not the narrower
+    helm/kubernetes/dockerfile-only `iac_scan` report from Task 7, so its own
+    `compliance_report` numbers (12 frameworks, 98 controls failed total) are a separate,
+    larger figure from `demo.sh` section 6's 89/10 above - both are correct for their own
+    scope, this is a deviation worth remembering, not a bug.
+  - `compliance_report` (default frameworks) on that code report: 12 frameworks, `summary.
+    total_controls_failed: 98`, `by_framework`: `qualys-kspm` 20, `qualys-iac` 20, `kubescape`
+    23, `cis-k8s-1.9` 8, `pss-v1.31` 6, `cis-docker-1.7` 3, `cis-azure` 6, `cis-azure-2.1` 3,
+    `cis-aws-3.0` 3, `cis-aws` 2, `cis-aws-1.2` 2, `cis-aws-1.4` 2.
+  - `compliance_report` with `frameworks: ["cis-k8s-1.9","cis-docker-1.7"]`: `summary.
+    total_controls_failed: 11` (`cis-k8s-1.9` 8, `cis-docker-1.7` 3). Confirmed: CIS
+    Kubernetes `5.2.2` fails on `KSV-0017` (privileged container); CIS Docker `4.1` fails on
+    `DS-0002` (root user).
+  - `trace_finding` on `KSV-0017` (code report + `repository_path` only, no image path):
+    returns `code.repository: https://github.com/nelssec/cnapp-demo.git`, `branch: main`,
+    commit `049e2567461e23adeb6421dd5df9c1d689cbbdd3` by `Andrew Nelson <andrew@nelssec.com>`,
+    the compliance mapping (incl. `5.2.2`/`cis-k8s-1.9`), `owners: [@nelssec/platform-team]`
+    (from `CODEOWNERS`), an empty `image` section (no image path given, as expected), and a
+    `story` paragraph.
+  - `trace_finding` on a dependency finding (`QID-990887`, `moment` `CVE-2022-24785`, code
+    report + a locally built `cnapp-demo:local` image report + `repository_path`): the local
+    image was built with `docker build --label org.opencontainers.image.source=... --label
+    org.opencontainers.image.revision=$(git rev-parse HEAD) --label
+    com.qualys.cnapp-demo.run-id=local --label com.qualys.cnapp-demo.actor=andrew` mirroring
+    `build-and-gate.yml`'s label keys, so unlike an unlabeled local build the trace record did
+    carry an `image` section: `reference: cnapp-demo:local`, `labels`: `source`,
+    `revision: 049e2567461e23adeb6421dd5df9c1d689cbbdd3`, `actor: andrew`, and
+    `run_url: https://github.com/nelssec/cnapp-demo/actions/runs/local` (composed from
+    `com.qualys.cnapp-demo.run-id=local` per the spec-ambiguity ruling). `owners:
+    [@nelssec/app-team]`. Deviation: the image's own dependency scan did not itself report
+    `moment` (its `npm ci --omit=dev` layer differs from the full lockfile the code scan
+    reads), so this record demonstrates the labels/reference path rather than an
+    installed-version cross-reference; the GHCR image from an actual `build-and-gate` run
+    remains the path that would show both.
+  - `finding_owners` on the code report: `codeowners_file: CODEOWNERS`, `total_findings: 126`,
+    three buckets, all `source: codeowners`: `@nelssec/app-team` - 78 findings
+    (`counts.by_severity`: critical 4, high 28, medium 40, low 6); `@nelssec/cloud-security` -
+    20 findings (high 14, medium 6); `@nelssec/platform-team` - 28 findings (critical 2,
+    high 5, medium 6, low 15).
+  - `prompts/get` for `triage_to_owners` (with `scan_report_path`/`repository_path` filled
+    in): returns description "Findings grouped by owner as Jira-ready task lists" and a user
+    message opening "Triage the QScanner findings in ... to the teams that own them ...
+    1. Resolve ownership. Call finding_owners ... 2. Get fix content. Call generate_fix ...
+    3. Write one Markdown section per owner ...", matching `docs/agent-prompts.md` prompt 10
+    - no rewording needed there either, or for prompt 9 (the OCI-label and `run_url`
+    behaviour matched what prompt 9 already documents).
 
 ### VS Code and Devin (not rehearsed unattended)
 
