@@ -66,7 +66,6 @@ jobs:
             "${MODE_ARGS[@]}" \
             --scan-types pkg,secret,compliance \
             --compliance-benchmarks DOCKER_CIS \
-            --qualys-tags "cnapp-demo,git-${GITHUB_SHA::7},run-${GITHUB_RUN_ID}" \
             --report-format table,sarif,json \
             -o qscanner-output \
             image "$IMAGE:${{ github.sha }}" 2>&1 | tee qscanner-output/image-scan.log
