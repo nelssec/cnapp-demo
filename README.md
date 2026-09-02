@@ -21,6 +21,19 @@ automated-remediation flow.
 
 See `RUNBOOK.md` for the demo flow and `docs/agent-prompts.md` for the VS Code and Devin prompts.
 
+## What the scanner covers
+
+| IaC type | Files | Engine | Check IDs |
+| --- | --- | --- | --- |
+| Terraform / OpenTofu | `*.tf` | Qualys IaC backend when `QUALYS_IAC_*` creds are set (else local) | `CID-<n>` (backend) or `AWS-*`/`AZU-*`/`GCP-*` (local) |
+| CloudFormation | `*.yaml`/`*.json` templates | Qualys IaC backend (else local) | `CID-<n>` or `AWS-*` |
+| Azure ARM | `*.json` templates | Qualys IaC backend (else local) | `CID-<n>` or `AZU-*` |
+| Helm charts | `Chart.yaml` + templates | local | `KSV-*` |
+| Kubernetes manifests | `*.yaml` | local | `KSV-*` |
+| Dockerfile | `Dockerfile*` | local | `DS-*` |
+
+Every finding carries a compliance column: CIS Docker / Kubernetes / AWS / Azure / GCP, Pod Security Standards, Kubescape, Qualys KSPM CIDs, and Qualys IaC CIDs. Dependencies (`--scan-types sca`) and secrets (`--scan-types secret`) run in the same invocation.
+
 ## Getting the scanner
 
 This repo publishes a custom QScanner build (with IaC scanning and MCP remediation tools) as
