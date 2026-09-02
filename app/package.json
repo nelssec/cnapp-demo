@@ -1,0 +1,15 @@
+{
+  "name": "cnapp-demo-app",
+  "version": "1.0.0",
+  "description": "Intentionally vulnerable Express service for the CNAPP demo",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "dependencies": {
+    "express": "4.17.1",
+    "lodash": "4.17.20",
+    "axios": "0.21.1",
+    "jsonwebtoken": "8.5.1",
+    "moment": "2.29.1",
+    "minimist": "1.2.5"
+  }
+}

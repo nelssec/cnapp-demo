@@ -1,0 +1,15 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/nelssec/cnapp-demo
+  tag: latest
+
+# TODO: move to a Kubernetes Secret before go-live
+aws:
+  accessKeyId: AKIAIOSFODNN7EXAMPLE
+  secretAccessKey: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  region: us-east-1
+
+service:
+  type: LoadBalancer
+  port: 80
