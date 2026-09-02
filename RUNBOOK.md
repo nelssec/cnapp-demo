@@ -230,3 +230,5 @@ from `~/.config/cnapp-demo/iac.env`.
       Terraform/CloudFormation show up when the backend is healthy).
 - [ ] Confirm VS Code is open on this repo with the `qscanner` MCP server from
       `.vscode/mcp.json` connected (first launch prompts for the token and IaC credentials).
+
+- Re-check after the rehearsal (2026-09-02, main @ fb5aaff): a full `qscanner --scan-types iac code .` against CA1 finished normally — Qualys IaC scan 849e3a55-dd61-48d0-a8c3-c4eecf6ce5c8 FINISHED, PASS 169 / FAIL 43 (backend: terraform, cloudformation, azurearm; local: helm, kubernetes, dockerfile). The ERROR seen during the rehearsal was transient; demo.sh falls back to the local engine automatically when it recurs.
