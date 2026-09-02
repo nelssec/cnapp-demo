@@ -1,0 +1,26 @@
+name: "Setup QScanner"
+description: "Download the CNAPP demo QScanner build from the nelssec/cnapp-demo GitHub release and expose its path."
+inputs:
+  dest:
+    description: "Directory to download and extract the qscanner binary into"
+    required: false
+    default: "${{ runner.temp }}/qscanner"
+  release_tag:
+    description: "Specific qscanner-<version> release tag to install (default: latest qscanner-* release)"
+    required: false
+    default: ""
+outputs:
+  path:
+    description: "Path to the qscanner binary"
+    value: ${{ steps.download.outputs.path }}
+runs:
+  using: "composite"
+  steps:
+    - id: download
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        QSCANNER_RELEASE_TAG: ${{ inputs.release_tag }}
+      run: |
+        BIN="$("$GITHUB_WORKSPACE/scripts/get-qscanner.sh" "${{ inputs.dest }}")"
+        echo "path=$BIN" >> "$GITHUB_OUTPUT"
