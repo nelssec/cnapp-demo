@@ -61,7 +61,7 @@ function collect(report) {
     }
   }
   const vr = report.VulnerabilityReport || {};
-  for (const v of vr.Vulnerabilities || vr.vulnerabilities || []) {
+  for (const v of vr.Vulnerabilities || vr.vulnerabilities || vr.details || []) {
     const sw = (v.software || v.Softwares || [])[0] || {};
     const file = sw.packagePath || sw.Path || 'app/package-lock.json';
     const fixed = sw.fixVersion || sw.FixedVersion;
