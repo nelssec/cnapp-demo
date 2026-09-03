@@ -1,0 +1,77 @@
+name: Triage findings into issues
+
+on:
+  workflow_dispatch:
+    inputs:
+      severity_floor:
+        description: Lowest severity to file (critical, high, medium, low)
+        default: high
+  push:
+    branches: [main]
+    paths-ignore: ['**.md', 'docs/**']
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  triage:
+    name: Scan main and file one issue per CODEOWNERS owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup qscanner
+        id: qs
+        uses: ./.github/actions/setup-qscanner
+
+      - name: Scan repository
+        id: scan
+        env:
+          QUALYS_ACCESS_TOKEN: ${{ secrets.QUALYS_ACCESS_TOKEN }}
+          QUALYS_POD: ${{ vars.QUALYS_POD || 'CA1' }}
+          QUALYS_IAC_USERNAME: ${{ secrets.QUALYS_IAC_USERNAME }}
+          QUALYS_IAC_PASSWORD: ${{ secrets.QUALYS_IAC_PASSWORD }}
+          QUALYS_IAC_AUTH_TYPE: basic
+        run: |
+          # Actions runs bash with -e; drop it so the exit code reaches the checks below.
+          set +e
+          set -uo pipefail
+          mkdir -p qscanner-output
+          "${{ steps.qs.outputs.path }}" --pod "$QUALYS_POD" \
+            --scan-types sca,secret,iac \
+            --report-format json \
+            --exclude-dirs '**/node_modules' \
+            -o qscanner-output \
+            code . 2>&1 | tee qscanner-output/scan.log
+          rc=${PIPESTATUS[0]}
+          echo "qscanner exit code: $rc"
+          report=$(ls qscanner-output/*-Report.json 2>/dev/null | head -1 || true)
+          echo "report=$report" >> "$GITHUB_OUTPUT"
+          if [[ -z "$report" ]]; then
+            echo "::error::no JSON report produced (qscanner exit $rc)"
+            exit 1
+          fi
+          if [[ $rc -eq 40 ]]; then
+            echo "::warning::SCA report not returned by the backend yet; IaC and secret findings are still filed"
+          fi
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qscanner-triage-report
+          path: qscanner-output/
+
+      - name: File or update issues per owner
+        uses: actions/github-script@v7
+        env:
+          SEVERITY_FLOOR: ${{ github.event.inputs.severity_floor || 'high' }}
+        with:
+          script: |
+            const triage = require('./.github/scripts/issues.js');
+            await triage({ github, context, core,
+              reportPath: '${{ steps.scan.outputs.report }}',
+              repoRoot: process.env.GITHUB_WORKSPACE,
+              severityFloor: process.env.SEVERITY_FLOOR });
