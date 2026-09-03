@@ -123,9 +123,19 @@ module.exports = async ({ github, context, core, reportPath, repoRoot, severityF
       created.push(res.data.number);
     }
   }
+  // Never close an owner's issue on the strength of an incomplete scan: if the Qualys IaC
+  // backend errored and qscanner could not fall back locally, the cloud findings are simply
+  // missing from this report, not fixed.
+  const iac = (report.Inventory || {}).IaCSummary || {};
+  const backendFailed = iac.Backend && iac.Backend.Status && iac.Backend.Status !== 'FINISHED'
+    && (iac.BackendTypes || []).length > 0 && !(iac.FallbackTypes || []).length;
   for (const i of existing) {
     if (i.state !== 'open' || !i.body) continue;
     const m = i.body.match(/<!-- qscanner-owner:(.+?) -->/);
+    if (m && !byOwner.has(m[1]) && backendFailed) {
+      await github.rest.issues.createComment({ owner, repo, issue_number: i.number, body: `The Qualys IaC backend scan did not complete in [this run](${runUrl}) (status ${iac.Backend.Status}), so cloud IaC findings are missing from the report rather than fixed. Keeping this issue open.` });
+      continue;
+    }
     if (m && !byOwner.has(m[1])) {
       await github.rest.issues.createComment({ owner, repo, issue_number: i.number, body: `All findings for ${m[1]} at or above ${severityFloor} are resolved as of [this run](${runUrl}). Closing.` });
       await github.rest.issues.update({ owner, repo, issue_number: i.number, state: 'closed' });
