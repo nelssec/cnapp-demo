@@ -169,6 +169,36 @@ a closing "Unassigned" section proposes the `CODEOWNERS` lines that would claim 
 Calling `finding_owners` directly gives the same grouping as data (`owners`, each with
 `source`, `findings`, and `counts.by_severity`).
 
+## 11. Goal-only remediation, no steps given [4.3.2, 4.3.4]
+
+> Get this repository's high-severity findings to zero and make the PR gate pass. Use the
+> qscanner tools, decide the order yourself, and stop when the gate is green or explain what
+> is left.
+
+This one is deliberately just a goal. Prompts 4 and 5 tell the agent roughly what to do;
+here it gets an outcome and has to plan the route itself. Run it in Devin or VS Code, same
+as the others.
+
+Expected: the agent picks its own sequence, and a good run looks something like scan first
+to establish the baseline, `generate_fix` on the report, apply the exact-confidence diffs
+as-is (the curated Terraform ACL/SG, Helm `privileged`/`runAsNonRoot`, and Dockerfile
+checks), hand-edit the guided ones, bump the Python pins in `service/requirements.txt`,
+re-scan, and compare counts before touching the gate. The order is the agent's; two runs
+will not sequence identically, and that is the point.
+
+On this repository the honest end state is not a green gate. The Python pins and the IaC
+fixes land, the dependency count drops, and the remaining high-severity findings are npm
+packages qscanner does not patch. A correct run finishes by saying exactly that: what it
+fixed, what is left, why it cannot fix the remainder, and what a human should do next. An
+agent that declares success here is wrong, and that failure mode is worth showing on
+purpose. If it stops early or claims the gate passed, ask it to re-run the gate and
+reconcile.
+
+Watching it hit the failing gate, go back to `generate_fix` for the files it skipped, and
+re-scan is the clearest live evidence that the sequencing comes from results, not from a
+script. Keep the run log; the before and after counts and the agent's own stopping
+explanation are the artifact.
+
 ## Finding the report path
 
 If the agent asks for `scan_report_path`, tell it: "Use the `report_path` returned by the
