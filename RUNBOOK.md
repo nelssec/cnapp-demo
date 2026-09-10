@@ -87,6 +87,31 @@ Prerequisites (do these the day before):
 - **Docker daemon not running:** `./demo.sh --fast` skips the image build/scan (section 4);
   narrate 4.2.5/4.2.7 from the recorded build-and-gate run instead.
 
+
+## TruRisk Insights coverage
+
+TotalCloud insights fire when the deployed container carries the signals below and is reachable from
+the internet. The image built by `build-and-gate.yml` (`ghcr.io/nelssec/cnapp-demo`, or `cnapp-demo:local`)
+and the Helm chart plant every signal except malware; deploying the chart to the demo EKS cluster with
+the LoadBalancer service is what makes the container "publicly exposed".
+
+| Signal the insight keys on | Where it is planted | Insight IDs it satisfies |
+| --- | --- | --- |
+| Secrets / sensitive data on the image | `/app/config/payments.yaml` (Stripe keys, SSN, card), `/app/data/customers.csv` (cards, IBANs, passport), `values.yaml` AWS key pair | 5113, 5114, 5117, 5120, 5126, 5183 |
+| Critical exploitable vulnerability (CISA KEV) | `/app/lib/log4j-core-2.14.1.jar` (CVE-2021-44228), `java/pom.xml` (Log4Shell, Spring4Shell), plus the Debian git KEV already on the base image | 5113, 5118, 5119, 5121, 5129, 5136, 5137, 5182 |
+| Public exploit / lateral movement flags | Same KEV packages carry threat-intel flags (public exploit, lateral movement) in the Qualys vuln report | 5119, 5120, 5121, 5136; vulnerabilities carrying the "associated with malware" threat-intel flag also satisfy 5116, 5123, 5139 |
+| End-of-Life software | Base image `node:16-buster` (Debian 10 and Node 16 are both EOL) | 5180, 5182, 5183 |
+| AI models / AI packages | `/root/.cache/huggingface/transformers/` (config.json, tokenizer.json, pytorch_model.bin), `@tensorflow/tfjs`, `transformers`, `torch` | 5189, 5191, 5193, 5194, 5195 |
+| Excessive / wildcard cloud permissions | ServiceAccount with IRSA role `cnapp-demo-app` bound to the `Action:*`/`Resource:*` policy in `terraform/main.tf`, token auto-mounted | 5126, 5127, 5129, 5131, 5132, 5136, 5137, 5140, 5194, 5195 |
+| Root privilege | `runAsUser: 0`, `privileged: true` in the deployment | 5131, 5140 |
+| Public exposure | `Service` type `LoadBalancer` on port 80 | every "publicly exposed / public container" insight above |
+| Runtime alert | Not planted; needs the runtime sensor on the cluster (Aman) | 5151, 5154, 5156 |
+| Malware | Not planted: QScanner's malware analysis classifies ELF binaries with a backend ML model and there is no benign test sample that triggers it; do not add real malware to a public repository | 5115, 5118, 5122, 5124, 5130, 5133, 5141 |
+
+Verified 2026-09-10 with the local build: repo SCA 122 vulnerabilities with 3 CISA KEV QIDs (Log4Shell 984157/986972, Spring4Shell 984158); image 127 vulnerabilities with 4 KEV, threat-intel flags on 100 (lateral movement) / 83 (public exploit) / 6 (active attacks); 3 AI model files under `/root/.cache/huggingface/transformers/`; 9 sensitive-data and key findings in 2 image files (Payment Card Number, SSN, IBAN, Stripe keys); CIS Docker PASS 1 / FAIL 4.
+
+Verify locally before the demo: `./demo.sh` section 2 lists the PII findings (Payment Card Number, Social Security Number, IBAN, Stripe keys); section 3 shows the KEV flag on the Log4Shell QID; section 4 shows the image with the AI model files and the same secrets.
+
 ## Outcome log (rehearsed 2026-09-02)
 
 Release used: `qscanner-5.3.0-cnapp5` (latest at rehearsal time; `scripts/get-qscanner.sh

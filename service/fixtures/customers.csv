@@ -1,0 +1,4 @@
+customer_id,full_name,email,ssn,card_number,card_expiry,iban,passport_no
+10001,Priya Raman,priya.raman@cnappdemo.io,219-09-9999,4532 0151 1283 0366,09/28,GB82 WEST 1234 5698 7654 32,P48213655
+10002,Marcus Webb,marcus.webb@cnappdemo.io,530-42-7710,5425 2334 3010 9903,02/27,DE89 3704 0044 0532 0130 00,C90144721
+10003,Elena Duarte,elena.duarte@cnappdemo.io,412-58-1024,3742 454554 00126,11/29,FR14 2004 1010 0505 0001 3M02 606,X77612044

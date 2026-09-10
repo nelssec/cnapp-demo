@@ -63,7 +63,8 @@ jobs:
           # it covers both OS and application (npm) package vulnerabilities in one scan type.
           "${{ steps.qs.outputs.path }}" --pod "$QUALYS_POD" \
             "${MODE_ARGS[@]}" \
-            --scan-types pkg,secret,compliance \
+            --scan-types pkg,secret,compliance,aiinsight \
+            --secret-config-file "$GITHUB_WORKSPACE/config/qscanner-secret-rules.json" \
             --compliance-benchmarks DOCKER_CIS \
             --report-format table,sarif,json \
             -o qscanner-output \

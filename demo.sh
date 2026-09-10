@@ -106,8 +106,8 @@ pause
 # ---------------------------------------------------------------------------
 header "2. Secrets in the Helm chart" \
        "The AWS key pair in helm/cnapp-demo/values.yaml would ship inside every release of this chart. (The AWS EXAMPLE key pair from AWS docs is allow-listed by the engine and will not show - this is a synthetic canary key.)"
-show "qscanner --pod $POD --scan-types secret --exclude-dirs '$EXCLUDE' --report-format table code ."
-"$QSCANNER" --pod "$POD" --scan-types secret --exclude-dirs "$EXCLUDE" --report-format table -o "$OUT/secret" code "$HERE"
+show "qscanner --pod $POD --scan-types secret --secret-config-file "$HERE/config/qscanner-secret-rules.json" --exclude-dirs '$EXCLUDE' --report-format table code ."
+"$QSCANNER" --pod "$POD" --scan-types secret --secret-config-file "$HERE/config/qscanner-secret-rules.json" --exclude-dirs "$EXCLUDE" --report-format table -o "$OUT/secret" code "$HERE"
 rc=$?
 echo -e "${YELLOW}exit code: $rc${RESET}"
 pause
@@ -133,8 +133,8 @@ else
          "Build the image from this Dockerfile and scan it before it is ever pushed. This is a LOCAL build (cnapp-demo:local) - the script does not pull ghcr.io/nelssec/cnapp-demo:latest, and the real CI push is blocked whenever the gate fails (build-and-gate.yml)."
   show "docker build -t $IMAGE ."
   if docker build -q -t "$IMAGE" "$HERE" >/dev/null; then
-    show "qscanner --pod $POD --scan-types pkg,secret,compliance --compliance-benchmarks DOCKER_CIS --report-format table image $IMAGE"
-    "$QSCANNER" --pod "$POD" --scan-types pkg,secret,compliance --compliance-benchmarks DOCKER_CIS --report-format table -o "$OUT/image" image "$IMAGE"
+    show "qscanner --pod $POD --scan-types pkg,secret,compliance,aiinsight --secret-config-file "$HERE/config/qscanner-secret-rules.json" --compliance-benchmarks DOCKER_CIS --report-format table image $IMAGE"
+    "$QSCANNER" --pod "$POD" --scan-types pkg,secret,compliance,aiinsight --secret-config-file "$HERE/config/qscanner-secret-rules.json" --compliance-benchmarks DOCKER_CIS --report-format table -o "$OUT/image" image "$IMAGE"
     rc=$?
     echo -e "${YELLOW}exit code: $rc${RESET}"
     echo -e "${DIM}Expect ~369 package vulnerabilities and Docker CIS PASS 1 / FAIL 4 (HEALTHCHECK 4.6, ADD 4.9, update-instruction 4.7, and one more) for this image.${RESET}"

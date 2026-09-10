@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>io.cnappdemo</groupId>
+  <artifactId>audit-logger</artifactId>
+  <version>1.0.0</version>
+  <description>Audit logging sidecar for the demo service (intentionally outdated dependencies)</description>
+  <dependencies>
+    <!-- CVE-2021-44228 (Log4Shell): CISA Known Exploited Vulnerability -->
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-core</artifactId>
+      <version>2.14.1</version>
+    </dependency>
+    <!-- CVE-2022-22965 (Spring4Shell): CISA Known Exploited Vulnerability -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-beans</artifactId>
+      <version>5.3.17</version>
+    </dependency>
+    <!-- CVE-2022-42889 (Text4Shell) -->
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-text</artifactId>
+      <version>1.9</version>
+    </dependency>
+  </dependencies>
+</project>

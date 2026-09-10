@@ -13,4 +13,6 @@ if [[ ! -x "$BIN" ]]; then
 fi
 [[ -n "${QUALYS_ACCESS_TOKEN:-}" ]] || echo "warning: QUALYS_ACCESS_TOKEN is not set; scans that need the Qualys backend will fail" >&2
 export QUALYS_IAC_AUTH_TYPE="${QUALYS_IAC_AUTH_TYPE:-basic}"
+# Sensitive-data rules (payment cards, SSNs, IBANs) ride along with the Qualys rule set.
+export QSCANNER_SECRET_CONFIG_FILE="${QSCANNER_SECRET_CONFIG_FILE:-$ROOT/config/qscanner-secret-rules.json}"
 exec "$BIN" mcp --pod "${QUALYS_POD:-CA1}"

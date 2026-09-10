@@ -24,11 +24,14 @@ compliance references (CIS AWS/Kubernetes, Pod Security Standards).
 
 ## 2. Secrets and compliance view [4.2.4, 4.2.6]
 
-> Run code_scan on ./helm with scan_types ["secret", "iac"] and show me the compliance
-> column for each finding, including any Qualys KSPM CIDs.
+> Run code_scan on this repository with scan_types ["secret", "iac"] and show me every
+> secret and sensitive-data finding (API keys, payment card numbers, SSNs, IBANs) with file
+> and line, then the compliance column for each IaC finding, including any Qualys KSPM CIDs.
 
-Expected: the AWS access key and secret in `helm/cnapp-demo/values.yaml` (lines 9-10) flagged
-by the secret scan, and the deployment's privileged/root/hostPath misconfigurations from the
+Expected: the AWS access key and secret in `helm/cnapp-demo/values.yaml` (lines 9-10), the
+live-format Stripe keys, SSN and payment card in `service/config/payments.yaml`, and the
+Luhn-valid card numbers and IBANs in `service/fixtures/customers.csv` flagged by the secret scan
+(the sensitive-data rules ship in `config/qscanner-secret-rules.json`), and the deployment's privileged/root/hostPath misconfigurations from the
 IaC scan shown with their compliance mappings — CIS Kubernetes Benchmark and Pod Security
 Standards controls, the matching Kubescape check ID (for example `DS-0002` for a container
 running as root), and the Qualys KSPM CID for the privileged container (`CID-45032`). Ask

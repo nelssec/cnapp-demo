@@ -14,6 +14,10 @@ CIS Docker compliance, in the terminal, in GitHub pull requests, in VS Code, and
 | Cloud (Terraform) | `terraform/main.tf` | Public S3 ACL, SSH open to 0.0.0.0/0, IAM policy with `*` |
 | Cloud (CloudFormation) | `cloudformation/rds.yaml` | Unencrypted, public RDS with a password in the template |
 | Cloud (Azure ARM) | `azure/storage.json` | Storage account allowing HTTP, public blob access, TLS 1.0, open network ACL |
+| Java | `java/pom.xml` | Log4Shell (CVE-2021-44228) and Spring4Shell (CVE-2022-22965), both CISA Known Exploited Vulnerabilities; Text4Shell |
+| Sensitive data | `service/fixtures/customers.csv`, `service/config/payments.yaml` | Synthetic payment card numbers (Luhn-valid), SSNs, IBANs, a passport number and live-format Stripe keys |
+| AI/ML | `models/huggingface/transformers/`, `service/requirements.txt`, `app/package.json` | A bundled DistilBERT-style checkpoint plus `transformers`, `torch` and `@tensorflow/tfjs` dependencies |
+| Runtime identity | `helm/cnapp-demo/templates/serviceaccount.yaml` | IRSA-annotated service account bound to the wildcard IAM role, token auto-mounted, behind a public LoadBalancer |
 | Service | `service/requirements.txt` | Pinned vulnerable Flask, Werkzeug, Requests, PyYAML, Jinja2, urllib3 |
 
 `service/` is a minimal Flask app kept separate from `app/` because qscanner's automated-remediation
@@ -52,6 +56,14 @@ Two more MCP tools close the loop from a running artifact back to a person:
 
 Neither runs `git` or `gh`: the commit history comes from the scan report's own repository
 metadata and the manifest lines come from reading the files in the checkout.
+
+## Sensitive-data detection rules
+
+`config/qscanner-secret-rules.json` is the Qualys secret rule set for pod CA1 plus four sensitive-data
+rules (payment card with Luhn validation, US SSN, IBAN with checksum validation, passport number).
+Every scan in this repo passes `--secret-config-file config/qscanner-secret-rules.json` so the planted
+PII in `service/` is detected alongside API keys. The file also carries the allow-rules that skip test,
+example and placeholder content, which is why the canaries avoid those words.
 
 ## Getting the scanner
 
