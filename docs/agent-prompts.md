@@ -72,7 +72,7 @@ is `high`), and opens a pull request against `nelssec/cnapp-demo` with a finding
 similar in spirit to the existing `qscanner/auto-remediation` PR (#2), which bumps the
 `service/requirements.txt` pins. The `PR security scan` workflow then runs on that PR, but it
 does not go green: on PR #2's [run](https://github.com/nelssec/cnapp-demo/actions/runs/33622728123)
-the summary comment shows the dependency vulnerability count dropping from 78 (main) to 64
+the summary comment shows the dependency vulnerability count dropping from 122 (main) to 108
 while the IaC gate still fails on the untouched Terraform/Helm files - remediation of one
 class of finding does not unblock the others. The six bumped `service/requirements.txt` pins
 remove 14 findings; the remaining 64 are npm packages in `app/`, which `qscanner patch` does
