@@ -22,12 +22,17 @@
     "qscanner": {
       "type": "stdio",
       "command": "${workspaceFolder}/.qscanner/qscanner",
-      "args": ["mcp", "--pod", "CA1"],
+      "args": [
+        "mcp",
+        "--pod",
+        "CA1"
+      ],
       "env": {
         "QUALYS_ACCESS_TOKEN": "${input:qualys-access-token}",
         "QUALYS_IAC_AUTH_TYPE": "basic",
         "QUALYS_IAC_USERNAME": "${input:qualys-iac-username}",
-        "QUALYS_IAC_PASSWORD": "${input:qualys-iac-password}"
+        "QUALYS_IAC_PASSWORD": "${input:qualys-iac-password}",
+        "QSCANNER_SECRET_CONFIG_FILE": "${workspaceFolder}/config/qscanner-secret-rules.json"
       }
     }
   }

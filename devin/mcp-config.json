@@ -1,13 +1,10 @@
 {
   "mcpServers": {
     "qscanner": {
-      "command": "/home/ubuntu/cnapp-demo/.qscanner/qscanner",
-      "args": ["mcp", "--pod", "CA1"],
+      "command": "bash",
+      "args": ["/home/ubuntu/repos/cnapp-demo/devin/run-qscanner-mcp.sh"],
       "env": {
-        "QUALYS_ACCESS_TOKEN": "${QUALYS_ACCESS_TOKEN}",
-        "QUALYS_IAC_AUTH_TYPE": "basic",
-        "QUALYS_IAC_USERNAME": "${QUALYS_IAC_USERNAME}",
-        "QUALYS_IAC_PASSWORD": "${QUALYS_IAC_PASSWORD}"
+        "QUALYS_POD": "CA1"
       }
     }
   }

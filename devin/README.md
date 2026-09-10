@@ -4,27 +4,32 @@ This repo ships a custom QScanner build with an MCP server (`qscanner mcp --pod 
 exposes SCA, secret, IaC, and container scanning, plus fix-generation and stakeholder-report
 prompts, to a Devin session on this repository.
 
-1. **Fetch the binary.** In the Devin machine setup for this repo, add to the startup
-   commands so the binary exists where `devin/mcp-config.json` expects it:
+1. **Machine setup (once per repo).** In Devin, open the repository's machine settings and add
+   these setup commands so the binary and `gh` are ready when a session starts (Devin clones
+   the repo to `/home/ubuntu/repos/cnapp-demo`; if yours differs, change the path in
+   `devin/mcp-config.json` too):
 
-       export GH_TOKEN=<github token with repo scope>
+       cd /home/ubuntu/repos/cnapp-demo
+       gh auth status || gh auth login --with-token <<< "$GH_TOKEN"
        ./scripts/get-qscanner.sh .qscanner
 
-   This downloads the release into `.qscanner/` (already git-ignored). If the workspace root
-   in your Devin session is not `/home/ubuntu/cnapp-demo`, update the `command` path in
-   `devin/mcp-config.json` to match.
+   `GH_TOKEN` is a GitHub token with read access to `nelssec/cnapp-demo` releases, stored as a
+   Devin secret (the release is on a private repo). `devin/run-qscanner-mcp.sh` also downloads
+   the binary on first use if the setup step was skipped.
 
-2. **Add the custom MCP server.** In Devin, open Settings, Integrations, MCP Marketplace, and
-   add a custom server using the contents of `devin/mcp-config.json`.
+2. **Add the custom MCP server.** In Devin, open Settings, MCP Marketplace, Add custom MCP
+   server, and paste the contents of `devin/mcp-config.json`. The server command is the
+   wrapper script `devin/run-qscanner-mcp.sh`, which reads the Qualys credentials from the
+   VM environment, so no secret values appear in the config.
 
 3. **Set secrets.** In Devin, open Settings, Secrets, and add:
    - `QUALYS_ACCESS_TOKEN` — the CS access token for pod CA1.
    - `QUALYS_IAC_USERNAME` and `QUALYS_IAC_PASSWORD` — credentials for backend evaluation of
-     Terraform and CloudFormation (used only when a scan needs the backend engine).
+     Terraform, CloudFormation, and ARM (Helm/Kubernetes/Dockerfile are evaluated locally).
+   - `GH_TOKEN` — for the release download above.
 
-   These resolve into the server's environment via the `${QUALYS_ACCESS_TOKEN}`,
-   `${QUALYS_IAC_USERNAME}`, and `${QUALYS_IAC_PASSWORD}` placeholders in
-   `devin/mcp-config.json`. Never write the real values into any file in this repo.
+   Devin exports secrets into the VM environment; the wrapper script passes them straight to
+   `qscanner mcp`. Never write the real values into any file in this repo.
 
 4. **Confirm the server.** Ask Devin "list the qscanner MCP tools and prompts" and confirm it
    can see the server before running anything else.

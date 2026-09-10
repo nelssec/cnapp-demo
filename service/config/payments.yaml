@@ -1,0 +1,9 @@
+# Payment provider settings for the demo checkout service.
+# TODO: move these to a secrets manager before go-live.
+stripe:
+  publishable_key: pk_live_51h7f2m9k3q8v1z6
+  secret_key: sk_live_51h7f2m9k3q8v1z6
+  webhook_endpoint: https://checkout.cnappdemo.io/stripe/webhook
+refunds:
+  approver_ssn: 335-27-0840
+  fallback_card: 6011 0009 9130 0009
