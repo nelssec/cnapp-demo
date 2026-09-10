@@ -114,6 +114,8 @@ Verify locally before the demo: `./demo.sh` section 2 lists the PII findings (Pa
 
 ## Outcome log (rehearsed 2026-09-02)
 
+- 2026-09-10 update (after planting the TruRisk insight signals; supersedes the counts below): main scan 122 dependency vulnerabilities (3 CISA KEV: Log4Shell, Spring4Shell), 11 secrets/sensitive-data findings in 3 files, 49-50 IaC misconfigurations, 3 AI model files; PR #1 `QScanner findings` 183 annotations, summary 122 / 11 / 50; PR #2 dependency count 122 -> 108; owner issues app-team 43, platform-team 12, cloud-security 14; image 127 vulnerabilities (4 KEV), 9 sensitive-data findings, 3 AI models, CIS Docker FAIL 4, GHCR push blocked.
+
 Release used: `qscanner-5.3.0-cnapp5` (latest at rehearsal time; `scripts/get-qscanner.sh
 .qscanner` fetched it without issue - `qscanner-5.3.0-cnapp5.linux-amd64.tar.gz` and
 `...darwin-arm64.tar.gz` were both present and matched their SHA256SUMS entries).
