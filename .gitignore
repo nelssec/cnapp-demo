@@ -1,8 +1,15 @@
 node_modules/
 qscanner-output/
+demo-output/
+demo-output.prev/
 .qscanner/
+.superpowers/
 *.tar.gz
 bin/
+
+# Qualys backend writes this to the CWD (not -o) when a code-asset secret scan's upload path
+# isn't supported yet ("Secret scanning is not yet fully supported for code assets").
+secret_payload.json
 
 # Terraform local state
 .terraform/

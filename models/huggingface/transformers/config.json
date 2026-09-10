@@ -1,0 +1,9 @@
+{
+  "_name_or_path": "cnappdemo/support-intent-classifier",
+  "architectures": ["DistilBertForSequenceClassification"],
+  "model_type": "distilbert",
+  "num_labels": 4,
+  "id2label": {"0": "billing", "1": "outage", "2": "security", "3": "other"},
+  "vocab_size": 30522,
+  "transformers_version": "4.30.0"
+}

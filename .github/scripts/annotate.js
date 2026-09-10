@@ -73,8 +73,8 @@ module.exports = async ({ github, context, core, sarifPath, gateExitCode }) => {
   if (context.payload.pull_request) {
     const marker = '<!-- qscanner-summary -->';
     const body = `${marker}\n## QScanner scan summary\n\n${summary}\n\nFull SARIF and JSON reports are attached to the workflow run as artifacts.`;
-    const { data: comments } = await github.rest.issues.listComments({
-      owner: context.repo.owner, repo: context.repo.repo, issue_number: context.payload.pull_request.number,
+    const comments = await github.paginate(github.rest.issues.listComments, {
+      owner: context.repo.owner, repo: context.repo.repo, issue_number: context.payload.pull_request.number, per_page: 100,
     });
     const existing = comments.find((c) => c.body && c.body.startsWith(marker));
     if (existing) {

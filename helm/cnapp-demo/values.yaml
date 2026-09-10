@@ -13,3 +13,7 @@ aws:
 service:
   type: LoadBalancer
   port: 80
+
+serviceAccount:
+  # Wildcard-policy role from terraform/main.tf; gives the pod broad AWS access via IRSA
+  roleArn: arn:aws:iam::123456789012:role/cnapp-demo-app

@@ -54,7 +54,8 @@ jobs:
           set -uo pipefail
           mkdir -p qscanner-output
           "${{ steps.qs.outputs.path }}" --pod "$QUALYS_POD" \
-            --scan-types sca,secret,iac \
+            --scan-types sca,secret,iac,aiinsight \
+            --secret-config-file config/qscanner-secret-rules.json \
             --iac-fail-on high \
             --report-format table,sarif,json \
             --exclude-dirs '**/node_modules' \

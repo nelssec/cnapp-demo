@@ -1,0 +1,29 @@
+# Ownership for the CNAPP demo repository.
+#
+# QScanner reads this file (finding_owners, trace_finding, and the triage_to_owners prompt) to
+# route a finding to the team that owns the file it lives in. Patterns are gitignore-style and
+# the LAST matching rule wins, so the catch-all below only applies to paths no later rule
+# claims.
+#
+# These team aliases are illustrative and do not exist in the nelssec org - the point of the
+# demo is QScanner resolving a finding to an owner, not GitHub enforcing a review.
+
+*                   @nelssec/platform-team
+
+# Cloud infrastructure: Terraform, CloudFormation, Azure ARM
+terraform/          @nelssec/cloud-security
+cloudformation/     @nelssec/cloud-security
+azure/              @nelssec/cloud-security
+
+# Kubernetes packaging and the container build
+helm/               @nelssec/platform-team
+Dockerfile          @nelssec/platform-team
+
+# Application code and its dependency manifests
+app/                @nelssec/app-team
+service/            @nelssec/app-team
+
+# Pipelines, tooling, and docs
+.github/            @nelssec/platform-team
+scripts/            @nelssec/platform-team
+docs/               @nelssec/app-team
