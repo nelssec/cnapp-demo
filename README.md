@@ -57,6 +57,17 @@ Two more MCP tools close the loop from a running artifact back to a person:
 Neither runs `git` or `gh`: the commit history comes from the scan report's own repository
 metadata and the manifest lines come from reading the files in the checkout.
 
+A third tool, `prioritize_findings`, turns a report into a fix queue ranked the way Qualys
+ranks it. Each finding's base score is its QDS (or severity when QDS is absent), boosted by
+threat intelligence (CISA KEV, active attacks, public exploit, malware, lateral movement,
+privilege escalation, no patch) and multiplied by deployment context: asset criticality and
+internet exposure from `.qualys/criticality.yaml`, privileged-workload and exposure signals
+from the IaC report. The tool also fetches the asset's TruRisk score, max QDS and
+customer-assigned criticality from the Container Security API with the MCP session's token
+(read-only; a backend criticality overrides the file), and reports the Qualys risk value on
+every finding. The result is P1 to P4 tiers with reasons, owners, and a `trurisk` block that
+matches the number shown in TotalCloud.
+
 ## Sensitive-data detection rules
 
 `config/qscanner-secret-rules.json` is the Qualys secret rule set for pod CA1 plus four sensitive-data

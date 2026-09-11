@@ -172,6 +172,21 @@ a closing "Unassigned" section proposes the `CODEOWNERS` lines that would claim 
 Calling `finding_owners` directly gives the same grouping as data (`owners`, each with
 `source`, `findings`, and `counts.by_severity`).
 
+## 10a. Prioritize the image findings the Qualys way [3.4.1 to 3.4.5, 3.4.7]
+
+> Run prioritize_findings on the last image scan report with repository_path set to this
+> repository and the last IaC report as context_report_path. Show the top 10 and explain the
+> asset TruRisk score and why the first two are P1.
+
+Expected: a `trurisk` block with `source: qualys` and the same TruRisk score TotalCloud shows
+for the `cnapp-demo` container (244 at the time of writing, max QDS 100), context showing
+criticality `high` and `internet_exposed: true` from `.qualys/criticality.yaml` plus
+`workload_privileged: true` from the Helm chart (KSV-0017/0012/0006), and the two Log4Shell
+QIDs (984157, 986972) at ranks 1 and 2 as P1: QDS 100, Qualys risk 50, boosted for CISA KEV,
+active attacks and public exploit, then multiplied for criticality and exposure. If the
+Qualys token is missing the block reads `source: unavailable` with the reason and the ranking
+still runs on QDS and threat intel; pass `trurisk_score` to pin the number by hand.
+
 ## 11. Goal-only remediation, no steps given [4.3.2, 4.3.4]
 
 > Get this repository's high-severity findings to zero and make the PR gate pass. Use the
