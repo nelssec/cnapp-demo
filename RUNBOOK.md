@@ -88,6 +88,30 @@ Prerequisites (do these the day before):
   narrate 4.2.5/4.2.7 from the recorded build-and-gate run instead.
 
 
+## Section 3.4 and 3.5 answers (container prioritization and code-to-cloud trace)
+
+The demo container (`ghcr.io/nelssec/cnapp-demo:latest` deployed by `helm/cnapp-demo`) is built so every prioritization
+dimension in the sheet has a concrete signal. Rows 3.4.x are shown in TotalCloud > Container Security on the running
+asset (Aman/Shrikant drive the UI); QScanner provides the same answer from the developer side so the story starts
+before deploy. Exact QQL tokens: confirm in the CS UI filter builder.
+
+| Item | Requirement | TotalCloud CS surface | QScanner evidence (this repo) |
+| --- | --- | --- | --- |
+| 3.4.1 | Business impact assessment | Assets > Containers: asset criticality score and dynamic tag on the cnapp-demo container (tag rule on image repo `nelssec/cnapp-demo` or namespace `cnapp-demo`); vulnerabilities re-ranked by TruRisk | `.qualys/criticality.yaml` in the repo (criticality, internet exposure) feeds the `prioritize_findings` MCP tool; owners from CODEOWNERS |
+| 3.4.2 | Exploitability analysis | Vulnerabilities on the container filtered by threat intel: CISA KEV, public exploit, active attacks, exploit kit; software in use (npm, Java jar, Debian packages) | Image report: 4 KEV (Log4Shell), 83 public-exploit, 6 active-attack flags; `prioritize_findings` boosts and lists the reasons; `demo.sh` section 3/4 |
+| 3.4.3 | Misconfiguration analysis | Containers filtered to privileged / running as root, then their vulnerabilities | The deployment is privileged, runs as UID 0 and mounts the Docker socket (KSV-0017, KSV-0012, KSV-0006); `prioritize_findings` applies the privileged-workload multiplier when given the IaC report as context |
+| 3.4.4 | Exposure analysis | Containers filtered to internet-exposed (LoadBalancer service, public IP), then their vulnerabilities | Service type LoadBalancer in the chart; security group 0.0.0.0/0 on 22 and 3389 in Terraform (CID-41/42); exposure multiplier in `prioritize_findings` |
+| 3.4.5 | Vulnerability analysis (QDS) | Open one QID on the asset, show QDS vs CVSS and the TruRisk contribution | Every vulnerability entry in the QScanner report carries `qdsScore`, CVSS and threat-intel flags; the Log4Shell QID shows QDS 95 with KEV |
+| 3.4.6 | Runtime context (drift) | Runtime sensor on the cluster: drift between image and running container, runtime alerts | Not from QScanner; needs the sensor (Aman). The RUNBOOK insight table marks 5151/5154/5156 the same way |
+| 3.4.7 | Prioritization methodology | Same QDS/TruRisk view: severity, exploitability, asset criticality, exposure combined | `prioritize_findings` prints its methodology paragraph and per-finding reasons (QDS base, threat-intel boosts, privileged/exposure/criticality multipliers, P1-P4 tiers) |
+| 3.5.1 | Trace to container image | Attack path view (Anuj) from the running container to its image digest | `trace_finding` on the image report: image reference and digest, OCI labels |
+| 3.5.2 | Trace to source repository | Same | `org.opencontainers.image.source` label -> `nelssec/cnapp-demo`; CS > Assets > Code lists the repo |
+| 3.5.3 | Trace to pipeline | Same | `com.qualys.cnapp-demo.run-id` label -> the GitHub Actions run URL |
+| 3.5.4 | Trace to commit | Same | `org.opencontainers.image.revision` -> commit; `trace_finding` joins it to the code report's commit (hash, message, author) and the manifest line (`java/pom.xml`, `app/package-lock.json`) |
+| 3.5.5 | Trace to developer ownership | Same | `trace_finding` and `finding_owners` resolve CODEOWNERS (`@nelssec/app-team`, `@nelssec/platform-team`, `@nelssec/cloud-security`), falling back to the last commit author |
+
+Demo path for 3.4: open the container in TotalCloud, show criticality tag and QDS ranking, filter privileged + internet-exposed + KEV, then switch to Devin/terminal and run `prioritize_findings` on the same image report to show the identical ranking with reasons, before the image was ever deployed.
+
 ## TruRisk Insights coverage
 
 TotalCloud insights fire when the deployed container carries the signals below and is reachable from

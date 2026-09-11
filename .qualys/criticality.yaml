@@ -1,0 +1,6 @@
+# Business context consumed by the prioritize_findings MCP tool (and a handy tag source for TotalCloud).
+criticality: high            # critical | high | medium | low
+internet_exposed: true       # the Helm service is a public LoadBalancer
+data_classification: customer PII and payment data (see service/fixtures)
+owner_team: "@nelssec/app-team"
+environment: production-demo
