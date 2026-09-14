@@ -14,3 +14,5 @@ secret_payload.json
 # Terraform local state
 .terraform/
 .terraform.lock.hcl
+__pycache__/
+*.pyc
