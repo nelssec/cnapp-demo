@@ -136,6 +136,34 @@ Verified 2026-09-10 with the local build: repo SCA 122 vulnerabilities with 3 CI
 
 Verify locally before the demo: `./demo.sh` section 2 lists the PII findings (Payment Card Number, Social Security Number, IBAN, Stripe keys); section 3 shows the KEV flag on the Log4Shell QID; section 4 shows the image with the AI model files and the same secrets.
 
+## TotalAI compliance on the code asset (Source Details > Compliance Summary)
+
+The Compliance Summary tab on a code asset is fed by `qscanner code --scan-types compliance`,
+which evaluates the repository against the AI benchmarks (EU AI Act, NIST AI RMF 1.0, PCI DSS
+4.0 via the aiscanner rule pack) plus the OWASP LLM01 prompt-injection config check. The engine
+only runs when a `.py` file imports an AI SDK (openai, anthropic, langchain, crewai, ...), so
+the repo carries a deliberately weak AI workload under `service/agent/`, `prompts/` and
+`service/config/llm_config.yaml`: a LangChain/OpenAI agent with six tools, a cardholder-data
+system prompt, model output fed to a shell and to SQL, temperature 1.8 and logprobs on; a
+FastMCP server over plain-HTTP SSE with no auth, TLS or rate limit; an MCP client with no
+credentials; no logging, timeouts, tests, model card or AI disclosure.
+
+Run it (p04, TLS verification off; the token comes from `~/.config/cnapp-demo/p04.env`):
+
+    .qscanner/qscanner --gateway-url https://gateway.p04.eng.sjc01.qualys.com --skip-verify-tls \
+      --scan-types sca,compliance --report-format json --exclude-dirs '**/node_modules' \
+      -o ~/qscanner-reports/cnapp-demo/p04-compliance code .
+
+Verified 2026-09-14 on p04: PASS 16 / FAIL 35 / SKIPPED 49 of 100 controls (EU AI Act 31 fail,
+PCI DSS 14 fail, NIST AI RMF 11 fail), uploaded and visible on the code asset
+`6d6e7a7f-00f2-324e-b9fe-99a1d0076bd5`. Headline failures: 48001/48002/48048 MCP server without
+auth, TLS or rate limit; 48047 MCP client unauthenticated; 48004 LLM output to exec/subprocess;
+48006 SQL built from LLM output; 48012 no human override; 48019 no timeouts; 48052 temperature
+above 1.5; 48054/48056/48057 no OpenAI moderation, strict tools or structured output;
+48058/48059/48062/48063 prompts with auth-bypass, cardholder, PAN and CVV keywords; 48037/48038
+no AI disclosure or model card. Each scan of a changed tree registers a new code asset (one per
+content hash), so open the newest `cnapp-demo` entry under Assets > Code, not an older UUID.
+
 ## Outcome log (rehearsed 2026-09-02)
 
 - 2026-09-10 (later): `prioritize_findings` verified headless against CA1 with the image report and the repo SCA report: `trurisk` {score 244, max_qds 100, source qualys} for both; with `repository_path` the tiers are P1 85 / P2 22 / P3 18 / P4 2 and the top five are QID-984157, QID-986972 (score 305, QDS 100, risk 50), QID-6000013, QID-6000281 (281), QID-985604 (250); `trurisk_score=244` override returns source `override` with no network call.
