@@ -6,9 +6,8 @@ prompts, to a Devin session on this repository.
 
 ## Devin desktop app (runs on your machine)
 
-The Devin desktop app is a Windsurf-based IDE. Its MCP servers run locally and are configured
-in `~/.codeium/windsurf/mcp_config.json` (also reachable from the Cascade panel: the MCP
-icon, then **Configure**). Point it at a wrapper script that sources the Qualys credentials
+The Devin desktop app runs its MCP servers locally and reads them from
+`~/.config/devin/mcp_config.json`. Point it at a wrapper script that sources the Qualys credentials
 and runs the binary from this checkout, so no secret values sit in the config:
 
     {
@@ -27,8 +26,8 @@ The wrapper (`~/.config/cnapp-demo/qscanner-mcp.sh`) is three lines: source
 `QSCANNER_SECRET_CONFIG_FILE=<checkout>/config/qscanner-secret-rules.json`, then
 `exec <checkout>/.qscanner/qscanner mcp --pod CA1`. Put the binary at `.qscanner/qscanner`
 (gitignored) with `scripts/get-qscanner.sh .qscanner` or a local build. After saving the
-config, click **Refresh** in the MCP panel and confirm 15 tools and 9 prompts are listed. The
-prompts in `docs/agent-prompts.md` then run from the Cascade chat with the repository open.
+config, restart the app (or reload its MCP servers) and confirm 15 tools and 9 prompts are
+listed. The prompts in `docs/agent-prompts.md` then run from the chat with the repository open.
 
 ## Devin cloud sessions (app.devin.ai)
 
