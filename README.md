@@ -17,6 +17,7 @@ CIS Docker compliance, in the terminal, in GitHub pull requests, in VS Code, and
 | Java | `java/pom.xml` | Log4Shell (CVE-2021-44228) and Spring4Shell (CVE-2022-22965), both CISA Known Exploited Vulnerabilities; Text4Shell |
 | Sensitive data | `service/fixtures/customers.csv`, `service/config/payments.yaml` | Synthetic payment card numbers (Luhn-valid), SSNs, IBANs, a passport number and live-format Stripe keys |
 | AI/ML | `models/huggingface/transformers/`, `service/requirements.txt`, `app/package.json` | A bundled DistilBERT-style checkpoint plus `transformers`, `torch` and `@tensorflow/tfjs` dependencies |
+| AI agent (TotalAI compliance) | `service/agent/`, `prompts/system_prompt.md`, `service/config/llm_config.yaml` | LangChain/OpenAI support agent with six tools, a cardholder-data system prompt, model output fed to a shell and to SQL, temperature 1.8, logprobs exposed; a FastMCP server over plain-HTTP SSE with no auth, TLS or rate limit; an MCP client with no credentials; an LLM config with no prompt-injection guardrails. Evaluated by `--scan-types compliance` against EU AI Act, NIST AI RMF and PCI DSS 4 |
 | Runtime identity | `helm/cnapp-demo/templates/serviceaccount.yaml` | IRSA-annotated service account bound to the wildcard IAM role, token auto-mounted, behind a public LoadBalancer |
 | Service | `service/requirements.txt` | Pinned vulnerable Flask, Werkzeug, Requests, PyYAML, Jinja2, urllib3 |
 

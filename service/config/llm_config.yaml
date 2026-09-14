@@ -1,0 +1,8 @@
+# LLM settings for the support agent. Intentionally missing guardrails for the demo.
+llm_config:
+  model_provider: openai
+  model_name: gpt-4o
+  inference_endpoint: https://api.openai.com/v1
+  api_key_env: OPENAI_API_KEY
+  temperature: 1.8
+  stream: true
